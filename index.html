@@ -227,7 +227,7 @@ function updateControls(){
     info.textContent=`Click the cards to hold. Held cards are copied into all ${n} hands; every other card is redrawn separately in each hand.`;
   }else{
     dealBtn.textContent='Play Again';
-    info.textContent=state.results.length>=2500
+    info.textContent=state.results.length>=1000
       ?`Result of ${n} hands. Tap a combination below to view that type, or use VIEW ALL RESULTS to show every hand.`
       :`Result of ${n} hands. Tap a combination below to show only the hands that hit it.`;
   }
@@ -266,7 +266,7 @@ function drawAll(){
   badge.textContent=`Best: ${COMBOS[best].name}`;badge.className=`combo-badge show tone-${bestTone}`;
   desc.textContent=`${hits} of ${state.n} hands made a pair or better`;desc.className=`combo-desc show tone-${bestTone}`;
   renderSummary();renderGrid();
-  viewAllAction.hidden=state.results.length<2500;
+  viewAllAction.hidden=state.results.length<1000;
   summaryEl.hidden=false;
 }
 
@@ -296,7 +296,7 @@ viewAllBtn.onclick=()=>{
 };
 
 function renderGrid(){
-  if(state.results.length>=2500&&!state.resultsRevealed&&state.filter===null){
+  if(state.results.length>=1000&&!state.resultsRevealed&&state.filter===null){
     gridEl.innerHTML='';
     return;
   }
