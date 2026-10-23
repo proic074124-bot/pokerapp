@@ -80,7 +80,6 @@ button:focus-visible{outline:2px solid var(--gold-light);outline-offset:2px}
 .mh.tone-green{border-color:rgba(142,240,160,.95);background:linear-gradient(180deg,rgba(142,240,160,.08),rgba(0,0,0,.22));box-shadow:0 0 0 1px rgba(142,240,160,.7),0 0 18px rgba(142,240,160,.42),0 0 34px rgba(142,240,160,.18)}
 .mh.tone-blue{border-color:rgba(112,199,255,.95);background:linear-gradient(180deg,rgba(112,199,255,.08),rgba(0,0,0,.22));box-shadow:0 0 0 1px rgba(112,199,255,.7),0 0 18px rgba(112,199,255,.42),0 0 34px rgba(112,199,255,.18)}
 .mh.tone-red{border-color:rgba(255,125,125,.95);background:linear-gradient(180deg,rgba(255,125,125,.08),rgba(0,0,0,.22));box-shadow:0 0 0 1px rgba(255,125,125,.7),0 0 18px rgba(255,125,125,.42),0 0 34px rgba(255,125,125,.18)}
-.mh.dim{opacity:.18}
 .mh:hover{transform:translateY(-2px)}
 .mcs{display:flex;gap:3px}
 .mc{flex:1;aspect-ratio:5/7;background:var(--card-white);color:#111;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:.72rem;line-height:1.15;border:2px solid transparent}
@@ -198,7 +197,7 @@ function updateControls(){
     info.textContent=`Click the cards to hold. Held cards are copied into all ${n} hands; every other card is redrawn separately in each hand.`;
   }else{
     dealBtn.textContent='Play Again';
-    info.textContent=`Result of ${n} hands. Tap a combination below to highlight the hands that hit it.`;
+    info.textContent=`Result of ${n} hands. Tap a combination below to show only the hands that hit it.`;
   }
   if(state.phase!=='final'){
     badge.textContent='—';badge.className='combo-badge';
@@ -257,12 +256,12 @@ summaryEl.onclick=e=>{
 };
 
 function renderGrid(){
-  gridEl.innerHTML=state.results.map((r,i)=>{
+  gridEl.innerHTML=state.results.flatMap((r,i)=>{
+    if(state.filter!==null&&r.ci!==state.filter)return [];
     const tone=comboTone(r.ci);
     const tier=r.ci<=1?' big':r.ci<=5?' hit':'';
-    const dim=state.filter!==null&&r.ci!==state.filter?' dim':'';
     const cards=r.hand.map((c,j)=>`<span class="mc${isRed(c.suit)?' red':''}${state.held[j]?' held':''}"><b>${c.rank}</b>${c.suit}</span>`).join('');
-    return `<div class="mh${tier?` ${tier}`:''}${tone!=='none'?` tone-${tone}`:''}${dim}"><div class="mcs">${cards}</div><div class="lab"><em>#${i+1}</em><span>${COMBOS[r.ci].name}</span></div></div>`;
+    return [`<div class="mh${tier?` ${tier}`:''}${tone!=='none'?` tone-${tone}`:''}"><div class="mcs">${cards}</div><div class="lab"><em>#${i+1}</em><span>${COMBOS[r.ci].name}</span></div></div>`];
   }).join('');
 }
 
