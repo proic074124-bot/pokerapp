@@ -29,6 +29,12 @@ header p{color:var(--text-muted);font-size:.8rem;letter-spacing:.15em;text-trans
 .card.clickable{cursor:pointer}
 .card.clickable:hover{transform:translateY(-10px)}
 .card.held{border:3px solid rgba(201,168,76,.9);transform:translateY(-10px)}
+.draw-face{position:absolute;inset:0;padding:8px 9px;border-radius:inherit;background:var(--card-white);display:flex;flex-direction:column;justify-content:space-between}
+.draw-face.red{color:var(--red)}.draw-face.black{color:#111}
+.draw-face.old{animation:draw-old .55s ease-in forwards}
+.draw-face.new{opacity:0;animation:draw-new .45s ease-out .55s forwards}
+@keyframes draw-old{to{opacity:0}}
+@keyframes draw-new{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 .card.back{background:repeating-linear-gradient(45deg,#12301f,#12301f 6px,#1c4730 6px,#1c4730 12px);border:4px solid var(--card-white)}
 .card.red{color:var(--red)}.card.black{color:#111}
 .card-corner{display:flex;flex-direction:column;align-items:center;line-height:1}
@@ -96,7 +102,7 @@ button:focus-visible{outline:2px solid var(--gold-light);outline-offset:2px}
 .mc.held{border-color:var(--gold)}
 .lab{margin-top:6px;font-size:.7rem;color:var(--card-white);display:flex;justify-content:space-between;gap:6px}
 .lab em{font-style:normal;color:var(--text-muted)}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}.draw-face.old{display:none}.draw-face.new{animation:none;opacity:1}}
 </style>
 </head>
 <body>
@@ -190,15 +196,25 @@ function renderHand(){
     for(let i=0;i<5;i++){const b=document.createElement('div');b.className='card back';handEl.appendChild(b)}
     return;
   }
-  state.hand.forEach((card,i)=>{
+  const showSingleResult=state.phase==='final'&&state.n===1&&state.results.length;
+  const displayHand=showSingleResult?state.results[0].hand:state.hand;
+  displayHand.forEach((card,i)=>{
     const el=document.createElement('div');
     const hold=state.phase==='hold';
     el.className=`card ${isRed(card.suit)?'red':'black'}${hold?' clickable':''}${state.held[i]?' held':''}`;
-    el.innerHTML=`<div class="card-corner"><div class="card-rank">${card.rank}</div><div class="card-suit-small">${card.suit}</div></div><div class="card-center">${card.suit}</div><div class="card-corner bottom"><div class="card-rank">${card.rank}</div><div class="card-suit-small">${card.suit}</div></div>`;
+    if(showSingleResult&&!state.held[i]){
+      el.innerHTML=`<div class="draw-face old ${isRed(state.hand[i].suit)?'red':'black'}">${cardContent(state.hand[i])}</div><div class="draw-face new">${cardContent(card)}</div>`;
+    }else{
+      el.innerHTML=cardContent(card);
+    }
     if(hold)el.onclick=()=>{state.held[i]=!state.held[i];renderHand()};
     if(state.held[i]){const l=document.createElement('div');l.className='hold-label';l.textContent='HELD';el.appendChild(l)}
     handEl.appendChild(el);
   });
+}
+
+function cardContent(card){
+  return `<div class="card-corner"><div class="card-rank">${card.rank}</div><div class="card-suit-small">${card.suit}</div></div><div class="card-center">${card.suit}</div><div class="card-corner bottom"><div class="card-rank">${card.rank}</div><div class="card-suit-small">${card.suit}</div></div>`;
 }
 
 function updateControls(){
