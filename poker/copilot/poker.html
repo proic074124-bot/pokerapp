@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>สุ่มไพ่โป๊กเกอร์</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; }
+    .card { display:inline-block; margin:5px; padding:20px; border:1px solid #333; border-radius:8px; }
+  </style>
+</head>
+<body>
+  <h1>สุ่มไพ่ 5 ใบ</h1>
+  <button onclick="deal()">สุ่มไพ่</button>
+  <div id="cards"></div>
+  <h2 id="result"></h2>
+
+<script>
+const suits = ["♠","♥","♦","♣"];
+const ranks = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
+
+function getDeck(){
+  let deck = [];
+  for(let s of suits){
+    for(let r of ranks){
+      deck.push({rank:r, suit:s});
+    }
+  }
+  return deck;
+}
+
+function deal(){
+  let deck = getDeck();
+  let hand = [];
+  for(let i=0;i<5;i++){
+    let idx = Math.floor(Math.random()*deck.length);
+    hand.push(deck.splice(idx,1)[0]);
+  }
+  display(hand);
+  document.getElementById("result").innerText = checkCombination(hand);
+}
+
+function display(hand){
+  let div = document.getElementById("cards");
+  div.innerHTML = "";
+  hand.forEach(c=>{
+    div.innerHTML += `<div class="card">${c.rank}${c.suit}</div>`;
+  });
+}
+
+function checkCombination(hand){
+  let ranksOnly = hand.map(c=>c.rank);
+  let suitsOnly = hand.map(c=>c.suit);
+  let flush = suitsOnly.every(s=>s===suitsOnly[0]);
+
+  let rankCounts = {};
+  ranksOnly.forEach(r => rankCounts[r] = (rankCounts[r] || 0) + 1);
+  let counts = Object.values(rankCounts).sort((a,b)=>b-a);
+
+  let values = ranksOnly.map(r=>ranks.indexOf(r)).sort((a,b)=>a-b);
+  let uniqueValues = [...new Set(values)];
+  let straight = uniqueValues.length === 5 && (
+    uniqueValues[4] - uniqueValues[0] === 4 ||
+    uniqueValues.toString() === '0,1,2,3,12'
+  );
+
+  if(straight && flush) return "Straight Flush";
+  if(counts[0] === 4) return "Four of a Kind";
+  if(counts[0] === 3 && counts[1] === 2) return "Full House";
+  if(flush) return "Flush";
+  if(straight) return "Straight";
+  if(counts[0] === 3) return "Three of a Kind";
+  if(counts[0] === 2 && counts[1] === 2) return "Two Pair";
+  if(counts[0] === 2) return "Pair";
+
+  let highest = Math.max(...values);
+  if(uniqueValues.toString() === '0,1,2,3,12') highest = 3;
+  return "High Card: " + ranks[highest];
+}
+</script>
+</body>
+</html>

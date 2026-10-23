@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seven Card Selection</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:ital,wght@0,300;0,500;0,700;1,300;1,500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0e0e12;
+  --surface:   #16161d;
+  --surface2:  #1e1e28;
+  --border:    #2e2e40;
+  --accent:    #e8c14a;
+  --accent2:   #ff6b35;
+  --accent3:   #4af0b8;
+  --red:       #e03545;
+  --card-bg:   #f7f3ea;
+  --card-red:  #cc2020;
+  --card-blk:  #111118;
+  --text:      #e8e4d8;
+  --muted:     #5a5a78;
+  --selected-glow: rgba(232,193,74,0.55);
+  --remain-glow:   rgba(74,240,184,0.45);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  font-family: 'Barlow Condensed', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 12px 60px;
+  overflow-x: hidden;
+}
+
+/* ── Scanline overlay ── */
+body::after {
+  content:'';
+  position:fixed; inset:0;
+  background: repeating-linear-gradient(0deg,
+    transparent, transparent 2px,
+    rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
+  pointer-events:none;
+  z-index:9999;
+}
+
+/* ── Header ── */
+header {
+  text-align:center;
+  margin-bottom:32px;
+}
+
+header h1 {
+  font-family:'Bebas Neue',sans-serif;
+  font-size: clamp(2.8rem,7vw,5rem);
+  letter-spacing:0.18em;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 60%, var(--accent) 100%);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+  line-height:1;
+  filter: drop-shadow(0 0 18px rgba(232,193,74,0.35));
+}
+
+header p {
+  font-size:0.85rem;
+  letter-spacing:0.28em;
+  text-transform:uppercase;
+  color: var(--muted);
+  margin-top:6px;
+}
+
+/* ── Instruction strip ── */
+.instruction {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  padding: 10px 20px;
+  font-size:0.92rem;
+  letter-spacing:0.06em;
+  color: var(--text);
+  border-radius:4px;
+  margin-bottom:28px;
+  text-align:center;
+  max-width:680px;
+  width:100%;
+  transition: border-color 0.4s, color 0.4s;
+}
+
+.instruction.phase-select { border-color: var(--accent); }
+.instruction.phase-done   { border-color: var(--accent3); color: var(--accent3); }
+
+/* ── 7-card fan ── */
+.fan-wrap {
+  display:flex;
+  justify-content:center;
+  align-items:flex-end;
+  gap: clamp(6px,2vw,16px);
+  margin-bottom:36px;
+  flex-wrap:wrap;
+  perspective:600px;
+}
+
+/* ── Card ── */
+.card {
+  width: clamp(72px,10.5vw,96px);
+  height: clamp(106px,15.5vw,140px);
+  background: var(--card-bg);
+  border-radius:10px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  padding: 7px 9px;
+  cursor:pointer;
+  position:relative;
+  box-shadow: 3px 5px 16px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.9);
+  transform-origin: bottom center;
+  transition:
+    transform 0.28s cubic-bezier(0.34,1.5,0.64,1),
+    box-shadow 0.28s ease,
+    outline 0.15s ease;
+  user-select:none;
+  outline: 3px solid transparent;
+  outline-offset:3px;
+  animation: dealIn 0.45s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+@keyframes dealIn {
+  from { opacity:0; transform: translateY(-60px) rotateX(40deg) scale(0.8); }
+  to   { opacity:1; transform: translateY(0) rotateX(0) scale(1); }
+}
+
+.card.red-card { color: var(--card-red); }
+.card.blk-card { color: var(--card-blk); }
+
+/* Selected (goes to chosen 2) */
+.card.selected {
+  transform: translateY(-22px) scale(1.07);
+  outline-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent), 0 0 28px var(--selected-glow), 4px 8px 20px rgba(0,0,0,0.7);
+}
+
+/* Remaining (the 5) */
+.card.remaining {
+  outline-color: var(--accent3);
+  box-shadow: 0 0 0 2px var(--accent3), 0 0 20px var(--remain-glow), 3px 5px 16px rgba(0,0,0,0.7);
+}
+
+.card.disabled {
+  cursor: default;
+  filter: brightness(0.88);
+}
+
+.card:hover:not(.disabled):not(.selected) {
+  transform: translateY(-10px) scale(1.03);
+  box-shadow: 3px 12px 24px rgba(0,0,0,0.7);
+}
+
+.card .c-top { display:flex; flex-direction:column; align-items:flex-start; line-height:1; }
+.card .c-bot { display:flex; flex-direction:column; align-items:flex-end; transform:rotate(180deg); line-height:1; }
+.card .c-rank { font-family:'Bebas Neue',sans-serif; font-size:clamp(0.9rem,2vw,1.15rem); line-height:1; }
+.card .c-suit { font-size:clamp(0.62rem,1.5vw,0.82rem); line-height:1; margin-top:1px; }
+.card .c-mid  { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:clamp(1.6rem,4vw,2.4rem); line-height:1; }
+
+/* Selected badge overlay */
+.card .sel-badge {
+  position:absolute;
+  top:-10px; right:-8px;
+  background: var(--accent);
+  color: #1a0e00;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:0.65rem;
+  letter-spacing:0.1em;
+  padding:2px 7px;
+  border-radius:3px;
+  display:none;
+  z-index:2;
+  box-shadow:0 2px 8px rgba(0,0,0,0.5);
+}
+.card.selected .sel-badge { display:block; }
+
+/* ── Results panel ── */
+.results-wrap {
+  display:none;
+  width:100%;
+  max-width:800px;
+  gap:16px;
+  flex-direction: column;
+  animation: fadeUp 0.5s ease both;
+}
+
+.results-wrap.show { display:flex; }
+
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(20px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+.result-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius:10px;
+  overflow:hidden;
+}
+
+.panel-header {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 18px;
+  background: var(--surface2);
+  border-bottom:1px solid var(--border);
+}
+
+.panel-dot {
+  width:10px; height:10px; border-radius:50%; flex-shrink:0;
+}
+.dot-selected { background:var(--accent); box-shadow:0 0 8px var(--accent); }
+.dot-remain   { background:var(--accent3); box-shadow:0 0 8px var(--accent3); }
+
+.panel-title {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:1.1rem;
+  letter-spacing:0.18em;
+  color:var(--text);
+}
+
+.panel-body {
+  padding:16px 18px;
+  display:flex;
+  align-items:center;
+  gap:20px;
+  flex-wrap:wrap;
+}
+
+/* Mini cards in result */
+.mini-cards {
+  display:flex;
+  gap:6px;
+  flex-shrink:0;
+}
+
+.mini-card {
+  width:52px; height:76px;
+  background:var(--card-bg);
+  border-radius:6px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  padding:4px 5px;
+  box-shadow:2px 3px 10px rgba(0,0,0,0.6);
+  animation: miniDeal 0.35s cubic-bezier(0.34,1.5,0.64,1) both;
+}
+
+@keyframes miniDeal {
+  from { opacity:0; transform:scale(0.7) translateY(10px); }
+  to   { opacity:1; transform:scale(1) translateY(0); }
+}
+
+.mini-card.red-card { color:var(--card-red); }
+.mini-card.blk-card { color:var(--card-blk); }
+.mini-card .mc-top  { display:flex; flex-direction:column; line-height:1; }
+.mini-card .mc-bot  { display:flex; flex-direction:column; align-items:flex-end; transform:rotate(180deg); line-height:1; }
+.mini-card .mc-rank { font-family:'Bebas Neue',sans-serif; font-size:0.8rem; }
+.mini-card .mc-suit { font-size:0.55rem; }
+
+.combo-info {
+  flex:1;
+  min-width:160px;
+}
+
+.combo-name {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(1.5rem,4vw,2.2rem);
+  letter-spacing:0.12em;
+  line-height:1;
+}
+
+.combo-name.c-selected { color:var(--accent); text-shadow:0 0 20px rgba(232,193,74,0.4); }
+.combo-name.c-remain   { color:var(--accent3); text-shadow:0 0 20px rgba(74,240,184,0.35); }
+.combo-name.c-high     { color:var(--muted); }
+
+.combo-desc {
+  font-size:0.82rem;
+  letter-spacing:0.08em;
+  color:var(--muted);
+  margin-top:4px;
+  font-style:italic;
+}
+
+.rank-pip {
+  display:inline-block;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:0.7rem;
+  letter-spacing:0.12em;
+  padding:2px 8px;
+  border-radius:2px;
+  margin-top:6px;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.1);
+  color:var(--muted);
+}
+
+/* ── Buttons ── */
+.btn-row {
+  display:flex;
+  gap:10px;
+  justify-content:center;
+  margin-top:28px;
+  flex-wrap:wrap;
+}
+
+.btn {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:1rem;
+  letter-spacing:0.2em;
+  padding:12px 32px;
+  border:none;
+  border-radius:5px;
+  cursor:pointer;
+  transition:all 0.18s;
+  position:relative;
+  overflow:hidden;
+}
+
+.btn::after {
+  content:'';
+  position:absolute; inset:0;
+  background:rgba(255,255,255,0);
+  transition:background 0.2s;
+}
+.btn:hover::after { background:rgba(255,255,255,0.07); }
+
+.btn-confirm {
+  background: linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#1a0800;
+  box-shadow:0 4px 20px rgba(232,193,74,0.4);
+}
+.btn-confirm:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(232,193,74,0.55); }
+.btn-confirm:disabled { opacity:0.3; cursor:not-allowed; transform:none; }
+
+.btn-deal {
+  background: var(--surface2);
+  color: var(--text);
+  border:1px solid var(--border);
+}
+.btn-deal:hover { transform:translateY(-2px); border-color:var(--accent); color:var(--accent); }
+
+/* ── Counter ── */
+.counter {
+  text-align:center;
+  font-size:0.8rem;
+  letter-spacing:0.15em;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin-bottom:10px;
+  transition:color 0.3s;
+}
+.counter.ready { color:var(--accent); }
+
+/* ── Divider ── */
+.divider {
+  width:100%;
+  max-width:700px;
+  height:1px;
+  background:linear-gradient(90deg,transparent,var(--border),transparent);
+  margin:8px 0 24px;
+}
+
+/* ── Legend ── */
+.legend {
+  display:flex;
+  gap:20px;
+  justify-content:center;
+  margin-bottom:18px;
+  flex-wrap:wrap;
+}
+
+.legend-item {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  font-size:0.78rem;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+
+.legend-dot {
+  width:9px; height:9px; border-radius:50%;
+}
+
+@media(max-width:480px){
+  .fan-wrap { gap:5px; }
+  .card { width:68px; height:100px; padding:5px 6px; }
+  .card .c-mid { font-size:1.4rem; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Seven Card Select</h1>
+  <p>Texas Hold'em · Hand Analyzer</p>
+</header>
+
+<div class="instruction phase-select" id="instruction">
+  Seven cards dealt — pick exactly <strong>2</strong> to set aside. The remaining 5 form your hand.
+</div>
+
+<div class="legend" id="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent);box-shadow:0 0 6px var(--accent)"></div> Selected (your 2)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--accent3);box-shadow:0 0 6px var(--accent3)"></div> Remaining hand (5 cards)</div>
+</div>
+
+<div class="counter" id="counter">Select 2 cards</div>
+
+<div class="fan-wrap" id="fanWrap"></div>
+
+<div class="btn-row">
+  <button class="btn btn-confirm" id="btnConfirm" disabled onclick="confirmSelection()">Reveal Hands</button>
+  <button class="btn btn-deal" onclick="dealNew()">New Deal ↺</button>
+</div>
+
+<div class="divider"></div>
+
+<div class="results-wrap" id="results"></div>
+
+<script>
+// ── Deck ────────────────────────────────────────────────
+const SUITS = ['♠','♥','♦','♣'];
+const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+const RED_SUITS = new Set(['♥','♦']);
+
+function buildDeck(){
+  return SUITS.flatMap(s => RANKS.map(r => ({rank:r, suit:s})));
+}
+
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+// ── State ────────────────────────────────────────────────
+let hand7 = [];
+let selected = new Set(); // indices of chosen 2
+
+// ── Evaluate ─────────────────────────────────────────────
+const RANK_VAL = Object.fromEntries(RANKS.map((r,i)=>[r,i+2]));
+
+function score(cards){
+  const suits = cards.map(c=>c.suit);
+  const vals  = cards.map(c=>RANK_VAL[c.rank]).sort((a,b)=>a-b);
+  const isFlush = new Set(suits).size===1;
+
+  // Straight check (incl wheel A-2-3-4-5)
+  const uniq = [...new Set(vals)].sort((a,b)=>a-b);
+  let isStraight = uniq.length===5 && (uniq[4]-uniq[0]===4);
+  if(!isStraight && vals.join(',') === '2,3,4,5,14') isStraight=true;
+  const isWheel = vals.join(',') === '2,3,4,5,14';
+
+  const freq={};
+  vals.forEach(v=>freq[v]=(freq[v]||0)+1);
+  const counts=Object.values(freq).sort((a,b)=>b-a);
+  const ranks = cards.map(c=>c.rank);
+
+  const isRoyal = isFlush && !isWheel &&
+    ['10','J','Q','K','A'].every(r=>ranks.includes(r));
+
+  if(isRoyal)                              return {name:'Royal Flush',    rank:10, cls:'c-remain', desc:'A K Q J 10, same suit — the best hand possible'};
+  if(isFlush && isStraight)               return {name:'Straight Flush',  rank:9,  cls:'c-remain', desc:'Five consecutive cards, all same suit'};
+  if(counts[0]===4)                        return {name:'Four of a Kind',  rank:8,  cls:'c-remain', desc:'All four cards of one rank'};
+  if(counts[0]===3&&counts[1]===2)        return {name:'Full House',       rank:7,  cls:'c-remain', desc:'Three of a kind plus a pair'};
+  if(isFlush)                              return {name:'Flush',            rank:6,  cls:'c-remain', desc:'Any five cards of the same suit'};
+  if(isStraight)                           return {name:'Straight',         rank:5,  cls:'c-remain', desc:'Five consecutive cards, mixed suits'};
+  if(counts[0]===3)                        return {name:'Three of a Kind',  rank:4,  cls:'c-remain', desc:'Three cards of the same rank'};
+  if(counts[0]===2&&counts[1]===2)        return {name:'Two Pair',          rank:3,  cls:'c-remain', desc:'Two separate pairs'};
+  if(counts[0]===2)                        return {name:'One Pair',          rank:2,  cls:'c-remain', desc:'Two cards of the same rank'};
+  return {name:'High Card', rank:1, cls:'c-high', desc:'No combination — highest card plays'};
+}
+
+function scoreTwo(cards){
+  // For 2-card "hand" — describe what the pair is
+  const [a,b] = cards;
+  const va=RANK_VAL[a.rank], vb=RANK_VAL[b.rank];
+  const sameSuit = a.suit===b.suit;
+  const isPair   = a.rank===b.rank;
+  const gap      = Math.abs(va-vb);
+  const high     = Math.max(va,vb);
+  const highName = va>vb ? a.rank : b.rank;
+
+  if(isPair){
+    const label = high>=13?'Premium Pair':high>=10?'Mid Pair':'Low Pair';
+    return {name:`Pocket ${a.rank}s`, sub:label, desc:`A pocket pair — strong starting cards${sameSuit?', suited!':''}`};
+  }
+  const suited = sameSuit?' · Suited':'';
+  const conn   = gap===1?' · Connected':gap===2?' · One-Gap':gap===3?' · Two-Gap':'';
+  const tier   = high>=13&&Math.min(va,vb)>=10?'Premium Broadway':
+                 high===14?'Ace-High':
+                 high>=12?'Face Cards':
+                 high>=10?'Ten-High':'Low Cards';
+  return {name:`${a.rank}${a.suit} ${b.rank}${b.suit}`, sub:tier+suited+conn, desc:'Your selected 2 cards — set aside from the hand'};
+}
+
+// ── Render ────────────────────────────────────────────────
+function isRed(s){ return RED_SUITS.has(s); }
+
+function makeCard(c, idx){
+  const div=document.createElement('div');
+  div.className=`card ${isRed(c.suit)?'red-card':'blk-card'}`;
+  div.style.animationDelay=(idx*65)+'ms';
+  div.dataset.idx=idx;
+  div.innerHTML=`
+    <div class="c-top"><div class="c-rank">${c.rank}</div><div class="c-suit">${c.suit}</div></div>
+    <div class="c-mid">${c.suit}</div>
+    <div class="c-bot"><div class="c-rank">${c.rank}</div><div class="c-suit">${c.suit}</div></div>
+    <div class="sel-badge">SELECTED</div>
+  `;
+  div.addEventListener('click',()=>toggleCard(idx,div));
+  return div;
+}
+
+function makeMini(c, delayMs){
+  const div=document.createElement('div');
+  div.className=`mini-card ${isRed(c.suit)?'red-card':'blk-card'}`;
+  div.style.animationDelay=delayMs+'ms';
+  div.innerHTML=`
+    <div class="mc-top"><div class="mc-rank">${c.rank}</div><div class="mc-suit">${c.suit}</div></div>
+    <div class="mc-bot"><div class="mc-rank">${c.rank}</div><div class="mc-suit">${c.suit}</div></div>
+  `;
+  return div;
+}
+
+function dealNew(){
+  selected.clear();
+  const deck=shuffle(buildDeck());
+  hand7=deck.slice(0,7);
+
+  const wrap=document.getElementById('fanWrap');
+  wrap.innerHTML='';
+  hand7.forEach((c,i)=>wrap.appendChild(makeCard(c,i)));
+
+  document.getElementById('results').classList.remove('show');
+  document.getElementById('results').innerHTML='';
+  document.getElementById('btnConfirm').disabled=true;
+  document.getElementById('instruction').className='instruction phase-select';
+  document.getElementById('instruction').innerHTML='Seven cards dealt — pick exactly <strong>2</strong> to set aside. The remaining 5 form your hand.';
+  updateCounter();
+}
+
+function toggleCard(idx, el){
+  if(document.getElementById('results').classList.contains('show')) return;
+  if(selected.has(idx)){
+    selected.delete(idx);
+    el.classList.remove('selected');
+  } else {
+    if(selected.size>=2){ return; } // max 2
+    selected.add(idx);
+    el.classList.add('selected');
+  }
+  updateCounter();
+  updateHighlights();
+}
+
+function updateHighlights(){
+  document.querySelectorAll('.card').forEach(el=>{
+    const i=parseInt(el.dataset.idx);
+    el.classList.remove('remaining','disabled');
+    if(selected.size===2 && !selected.has(i)){
+      el.classList.add('remaining');
+    }
+    if(selected.size===2 && !selected.has(i)){
+      // remaining cards not disabled, just styled
+    }
+  });
+}
+
+function updateCounter(){
+  const n=selected.size;
+  const el=document.getElementById('counter');
+  if(n===0)     el.textContent='Select 2 cards';
+  else if(n===1) el.textContent='Select 1 more card';
+  else {
+    el.textContent='✓ Ready — confirm your selection';
+    el.classList.add('ready');
+  }
+  if(n<2) el.classList.remove('ready');
+  document.getElementById('btnConfirm').disabled = n!==2;
+}
+
+function confirmSelection(){
+  if(selected.size!==2) return;
+
+  const selArr  = [...selected].map(i=>hand7[i]);
+  const remArr  = hand7.filter((_,i)=>!selected.has(i));
+
+  const selResult = scoreTwo(selArr);
+  const remResult = score(remArr);
+
+  // Mark all cards non-interactive
+  document.querySelectorAll('.card').forEach(el=>{
+    el.classList.add('disabled');
+    el.style.cursor='default';
+  });
+
+  // Update instruction
+  const instr=document.getElementById('instruction');
+  instr.className='instruction phase-done';
+  instr.textContent='Analysis complete — see your hands below.';
+
+  // Build results
+  const wrap=document.getElementById('results');
+  wrap.innerHTML='';
+
+  // Panel: selected 2
+  const p1=document.createElement('div');
+  p1.className='result-panel';
+  const minis1=document.createElement('div');
+  minis1.className='mini-cards';
+  selArr.forEach((c,i)=>minis1.appendChild(makeMini(c,i*80)));
+
+  p1.innerHTML=`
+    <div class="panel-header">
+      <div class="panel-dot dot-selected"></div>
+      <div class="panel-title">Your Selected 2 Cards</div>
+    </div>
+  `;
+  const body1=document.createElement('div');
+  body1.className='panel-body';
+  const info1=document.createElement('div');
+  info1.className='combo-info';
+  info1.innerHTML=`
+    <div class="combo-name c-selected">${selResult.name}</div>
+    <div class="combo-desc">${selResult.desc}</div>
+    <div class="rank-pip">${selResult.sub}</div>
+  `;
+  body1.appendChild(minis1);
+  body1.appendChild(info1);
+  p1.appendChild(body1);
+
+  // Panel: remaining 5
+  const p2=document.createElement('div');
+  p2.className='result-panel';
+  const minis2=document.createElement('div');
+  minis2.className='mini-cards';
+  remArr.forEach((c,i)=>minis2.appendChild(makeMini(c,i*80+160)));
+
+  const rankLabels = ['','High Card','One Pair','Two Pair','Three of a Kind','Straight','Flush','Full House','Four of a Kind','Straight Flush','Royal Flush'];
+
+  p2.innerHTML=`
+    <div class="panel-header">
+      <div class="panel-dot dot-remain"></div>
+      <div class="panel-title">Remaining 5-Card Hand</div>
+    </div>
+  `;
+  const body2=document.createElement('div');
+  body2.className='panel-body';
+  const info2=document.createElement('div');
+  info2.className='combo-info';
+  info2.innerHTML=`
+    <div class="combo-name ${remResult.cls}">${remResult.name}</div>
+    <div class="combo-desc">${remResult.desc}</div>
+    <div class="rank-pip">Hand Rank · ${remResult.rank} / 10 — ${rankLabels[remResult.rank]}</div>
+  `;
+  body2.appendChild(minis2);
+  body2.appendChild(info2);
+  p2.appendChild(body2);
+
+  wrap.appendChild(p1);
+  wrap.appendChild(p2);
+  wrap.classList.add('show');
+
+  document.getElementById('btnConfirm').disabled=true;
+}
+
+// ── Init ─────────────────────────────────────────────────
+dealNew();
+</script>
+</body>
+</html>

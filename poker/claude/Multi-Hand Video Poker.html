@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Multi-Hand Video Poker</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--felt:#1a3a2a;--felt-light:#22503a;--felt-dark:#0f2218;--gold:#c9a84c;--gold-light:#e8c97a;--card-white:#faf8f3;--red:#cc2222;--dark:#0a0a0a;--text-muted:#7a9a88;--r:clamp(28px,5vw,58px);
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--felt-dark);font-family:'DM Mono',monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow-x:hidden;padding:24px 0}
+body::before{content:'';position:fixed;inset:0;background-image:repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(255,255,255,.015) 2px,rgba(255,255,255,.015) 4px),repeating-linear-gradient(-45deg,transparent,transparent 2px,rgba(255,255,255,.015) 2px,rgba(255,255,255,.015) 4px);pointer-events:none}
+.table{width:min(1100px,96vw);padding:36px clamp(14px,3vw,30px) 58px;position:relative}
+.table::before{content:'';position:absolute;inset:-4px;border-radius:calc(var(--r) + 2px);background:linear-gradient(135deg,var(--gold),#8b6914 50%,var(--gold-light));z-index:-1}
+.table::after{content:'';position:absolute;inset:0;border-radius:var(--r);background:radial-gradient(ellipse at 30% 30%,var(--felt-light),var(--felt-dark));z-index:-1}
+header{text-align:center;margin-bottom:22px}
+header h1{font-family:'Playfair Display',serif;font-size:clamp(2rem,5vw,3rem);font-weight:900;color:var(--gold);letter-spacing:.08em;text-shadow:0 2px 20px rgba(201,168,76,.4)}
+header p{color:var(--text-muted);font-size:.8rem;letter-spacing:.15em;text-transform:uppercase;margin-top:6px}
+.picker{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px;color:var(--text-muted);font-size:.8rem}
+.pick{min-width:48px;padding:8px 12px;background:rgba(0,0,0,.25);color:var(--card-white);border:1px solid rgba(201,168,76,.35);border-radius:4px;font:inherit;font-size:.85rem;cursor:pointer;transition:background .15s,color .15s}
+.pick:hover:not(:disabled){background:rgba(201,168,76,.18)}
+.pick.active{background:var(--gold);color:var(--dark);border-color:var(--gold);font-weight:500}
+.pick:disabled{opacity:.45;cursor:not-allowed}
+.instructions{color:var(--text-muted);font-size:.86rem;text-align:center;margin:0 auto 24px;max-width:760px;line-height:1.6}
+.hand{display:flex;justify-content:center;gap:clamp(8px,2vw,20px);margin-bottom:26px;perspective:800px;min-height:190px;align-items:flex-end}
+.card{width:clamp(58px,12vw,110px);height:clamp(90px,18vw,160px);background:var(--card-white);border-radius:12px;display:flex;flex-direction:column;justify-content:space-between;padding:8px 9px;box-shadow:0 4px 6px rgba(0,0,0,.35),0 10px 30px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.9);position:relative;transition:transform .2s,box-shadow .2s;user-select:none}
+.card.clickable{cursor:pointer}
+.card.clickable:hover{transform:translateY(-10px)}
+.card.held{border:3px solid rgba(201,168,76,.9);transform:translateY(-10px)}
+.card.back{background:repeating-linear-gradient(45deg,#12301f,#12301f 6px,#1c4730 6px,#1c4730 12px);border:4px solid var(--card-white)}
+.card.red{color:var(--red)}.card.black{color:#111}
+.card-corner{display:flex;flex-direction:column;align-items:center;line-height:1}
+.card-corner.bottom{transform:rotate(180deg);align-self:flex-end}
+.card-rank{font-family:'Playfair Display',serif;font-size:clamp(.9rem,2.5vw,1.4rem);font-weight:700}
+.card-suit-small{font-size:clamp(.7rem,1.8vw,.95rem);margin-top:1px}
+.card-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:clamp(1.6rem,5vw,3rem);line-height:1}
+.hold-label{position:absolute;top:-12px;left:50%;transform:translateX(-50%);padding:3px 9px;border-radius:999px;font-size:.62rem;letter-spacing:.14em;background:var(--gold);color:#111;pointer-events:none}
+.result-area{text-align:center;min-height:92px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.combo-badge{font-family:'Playfair Display',serif;font-size:clamp(1.2rem,3vw,1.8rem);font-weight:700;color:var(--gold);padding:10px 32px;border:2px solid var(--gold);border-radius:4px;background:rgba(201,168,76,.08);box-shadow:0 0 30px rgba(201,168,76,.2);opacity:0;transform:scale(.92);transition:opacity .4s,transform .4s cubic-bezier(.34,1.56,.64,1)}
+.combo-badge.show{opacity:1;transform:scale(1)}
+.combo-badge.tone-yellow{color:#f7d55a;border-color:#f7d55a;background:rgba(247,213,90,.1);box-shadow:0 0 24px rgba(247,213,90,.25)}
+.combo-badge.tone-green{color:#8ef0a0;border-color:#8ef0a0;background:rgba(142,240,160,.12);box-shadow:0 0 24px rgba(142,240,160,.24)}
+.combo-badge.tone-blue{color:#70c7ff;border-color:#70c7ff;background:rgba(112,199,255,.12);box-shadow:0 0 24px rgba(112,199,255,.25)}
+.combo-badge.tone-red{color:#ff7d7d;border-color:#ff7d7d;background:rgba(255,125,125,.12);box-shadow:0 0 24px rgba(255,125,125,.25)}
+.combo-desc{color:var(--text-muted);font-size:.78rem;letter-spacing:.1em;opacity:0;transition:opacity .4s .1s}
+.combo-desc.show{opacity:1}
+.combo-desc.tone-yellow{color:#f7d55a}
+.combo-desc.tone-green{color:#8ef0a0}
+.combo-desc.tone-blue{color:#70c7ff}
+.combo-desc.tone-red{color:#ff7d7d}
+.deal-btn{display:block;margin:30px auto 0;padding:16px 52px;background:linear-gradient(135deg,var(--gold),#a07828);color:var(--dark);font-family:inherit;font-size:.9rem;font-weight:500;letter-spacing:.2em;text-transform:uppercase;border:none;border-radius:4px;cursor:pointer;box-shadow:0 4px 20px rgba(201,168,76,.3),0 2px 4px rgba(0,0,0,.4);transition:transform .15s}
+.deal-btn:hover{transform:translateY(-2px)}.deal-btn:active{transform:none}
+button:focus-visible{outline:2px solid var(--gold-light);outline-offset:2px}
+.summary{margin-top:34px;padding:18px clamp(10px,2vw,22px);background:rgba(0,0,0,.25);border:1px solid rgba(201,168,76,.3);border-radius:10px}
+.summary h2{font-family:'Playfair Display',serif;color:var(--gold);font-size:1.3rem}
+.summary .sub{color:var(--text-muted);font-size:.78rem;margin:4px 0 10px;line-height:1.5}
+.row{display:grid;grid-template-columns:minmax(104px,150px) 1fr 38px 54px;align-items:center;gap:12px;width:100%;padding:8px 12px;margin-top:3px;background:transparent;border:1px solid rgba(255,255,255,.08);border-radius:6px;color:var(--card-white);font:inherit;font-size:.8rem;text-align:left;cursor:pointer;transition:border-color .2s,background .2s,box-shadow .2s,opacity .2s,filter .2s}
+.row:hover:not(:disabled){background:rgba(201,168,76,.08)}
+.row.on{border-color:var(--gold);background:rgba(201,168,76,.12)}
+.row:disabled{opacity:.38;cursor:default}
+.row.tone-yellow{border-color:rgba(247,213,90,.95);background:rgba(247,213,90,.04)}
+.row.tone-green{border-color:rgba(142,240,160,.95);background:rgba(142,240,160,.04)}
+.row.tone-blue{border-color:rgba(112,199,255,.95);background:rgba(112,199,255,.04)}
+.row.tone-red{border-color:rgba(255,125,125,.95);background:rgba(255,125,125,.04)}
+.row.dimmed{opacity:.18;filter:saturate(.25);background:rgba(255,255,255,.02)}
+.row.dimmed.tone-yellow{box-shadow:0 0 0 1px rgba(247,213,90,.18)}
+.row.dimmed.tone-green{box-shadow:0 0 0 1px rgba(142,240,160,.18)}
+.row.dimmed.tone-blue{box-shadow:0 0 0 1px rgba(112,199,255,.18)}
+.row.dimmed.tone-red{box-shadow:0 0 0 1px rgba(255,125,125,.18)}
+.bar{height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#8b6914,var(--gold-light))}
+.cnt{text-align:right;color:var(--gold-light);font-weight:500}.pct{text-align:right;color:var(--text-muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:22px}
+.mh{padding:8px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.08);border-radius:8px;transition:opacity .2s,transform .2s,box-shadow .2s;transform:translateY(0)}
+.mh.hit{border-color:rgba(201,168,76,.45)}
+.mh.big{border-color:var(--gold);box-shadow:0 0 0 1px rgba(201,168,76,.6),0 0 20px rgba(201,168,76,.3),0 0 28px rgba(201,168,76,.22)}
+.mh.tone-yellow{border-color:rgba(247,213,90,.95);background:linear-gradient(180deg,rgba(247,213,90,.08),rgba(0,0,0,.22));box-shadow:0 0 0 1px rgba(247,213,90,.7),0 0 18px rgba(247,213,90,.42),0 0 34px rgba(247,213,90,.18)}
+.mh.tone-green{border-color:rgba(142,240,160,.95);background:linear-gradient(180deg,rgba(142,240,160,.08),rgba(0,0,0,.22));box-shadow:0 0 0 1px rgba(142,240,160,.7),0 0 18px rgba(142,240,160,.42),0 0 34px rgba(142,240,160,.18)}
+.mh.tone-blue{border-color:rgba(112,199,255,.95);background:linear-gradient(180deg,rgba(112,199,255,.08),rgba(0,0,0,.22));box-shadow:0 0 0 1px rgba(112,199,255,.7),0 0 18px rgba(112,199,255,.42),0 0 34px rgba(112,199,255,.18)}
+.mh.tone-red{border-color:rgba(255,125,125,.95);background:linear-gradient(180deg,rgba(255,125,125,.08),rgba(0,0,0,.22));box-shadow:0 0 0 1px rgba(255,125,125,.7),0 0 18px rgba(255,125,125,.42),0 0 34px rgba(255,125,125,.18)}
+.mh.dim{opacity:.18}
+.mh:hover{transform:translateY(-2px)}
+.mcs{display:flex;gap:3px}
+.mc{flex:1;aspect-ratio:5/7;background:var(--card-white);color:#111;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:.72rem;line-height:1.15;border:2px solid transparent}
+.mc.red{color:var(--red)}
+.mc.held{border-color:var(--gold)}
+.lab{margin-top:6px;font-size:.7rem;color:var(--card-white);display:flex;justify-content:space-between;gap:6px}
+.lab em{font-style:normal;color:var(--text-muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="table">
+  <header>
+    <h1>Video Poker</h1>
+    <p>Multi-hand: hold once, draw up to 10000 hands</p>
+  </header>
+  <div class="picker" id="picker"></div>
+  <div class="instructions" id="instructions"></div>
+  <div class="hand" id="hand"></div>
+  <div class="result-area">
+    <div class="combo-badge" id="comboBadge">—</div>
+    <div class="combo-desc" id="comboDesc"></div>
+  </div>
+  <button class="deal-btn" id="dealBtn" onclick="handleDeal()">Deal Cards</button>
+  <section class="summary" id="summary" hidden></section>
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+const SUITS=['♠','♥','♦','♣'];
+const RANKS=['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+const RANK_VAL=Object.fromEntries(RANKS.map((r,i)=>[r,i+2]));
+const HAND_OPTIONS=[5,10,20,50,75,100,250,500,1000,2500,5000,7000,10000];
+const COMBOS=[
+  {name:'Royal Flush',desc:'A, K, Q, J, 10 of the same suit'},
+  {name:'Straight Flush',desc:'Five consecutive cards of the same suit'},
+  {name:'Four of a Kind',desc:'Four cards of one rank'},
+  {name:'Full House',desc:'Three of a kind plus a pair'},
+  {name:'Flush',desc:'Five cards of the same suit'},
+  {name:'Straight',desc:'Five consecutive cards'},
+  {name:'Three of a Kind',desc:'Three cards of the same rank'},
+  {name:'Two Pair',desc:'Two different pairs'},
+  {name:'One Pair',desc:'Two cards of the same rank'},
+  {name:'High Card',desc:'No combination'}
+];
+const state={hand:[],held:[false,false,false,false,false],phase:'ready',n:10,results:[],counts:[],filter:null};
+const $=id=>document.getElementById(id);
+const handEl=$('hand'),badge=$('comboBadge'),desc=$('comboDesc'),dealBtn=$('dealBtn'),info=$('instructions'),picker=$('picker'),summaryEl=$('summary'),gridEl=$('grid');
+
+const buildDeck=()=>SUITS.flatMap(suit=>RANKS.map(rank=>({rank,suit})));
+const isRed=s=>s==='♥'||s==='♦';
+function shuffle(d){for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]]}return d}
+
+function evaluate(hand){
+  const ranks=hand.map(c=>c.rank);
+  const values=ranks.map(r=>RANK_VAL[r]).sort((a,b)=>a-b);
+  const flush=new Set(hand.map(c=>c.suit)).size===1;
+  const straight=new Set(values).size===5&&(values[4]-values[0]===4||values.join()==='2,3,4,5,14');
+  const f={};values.forEach(v=>f[v]=(f[v]||0)+1);
+  const c=Object.values(f).sort((a,b)=>b-a);
+  if(flush&&['10','J','Q','K','A'].every(r=>ranks.includes(r)))return 0;
+  if(flush&&straight)return 1;
+  if(c[0]===4)return 2;
+  if(c[0]===3&&c[1]===2)return 3;
+  if(flush)return 4;
+  if(straight)return 5;
+  if(c[0]===3)return 6;
+  if(c[0]===2&&c[1]===2)return 7;
+  if(c[0]===2)return 8;
+  return 9;
+}
+
+function comboTone(ci){
+  if(ci<=1)return 'red';
+  if(ci<=3)return 'blue';
+  if(ci<=5)return 'green';
+  if(ci<=8)return 'yellow';
+  return 'none';
+}
+
+function renderPicker(){
+  picker.innerHTML='<span>Hands</span>'+HAND_OPTIONS.map(n=>`<button class="pick${n===state.n?' active':''}" data-n="${n}" ${state.phase==='hold'?'disabled':''}>${n}</button>`).join('');
+}
+picker.onclick=e=>{
+  const b=e.target.closest('.pick');
+  if(!b||state.phase==='hold')return;
+  state.n=+b.dataset.n;
+  renderPicker();updateControls();
+};
+
+function renderHand(){
+  handEl.innerHTML='';
+  if(!state.hand.length){
+    for(let i=0;i<5;i++){const b=document.createElement('div');b.className='card back';handEl.appendChild(b)}
+    return;
+  }
+  state.hand.forEach((card,i)=>{
+    const el=document.createElement('div');
+    const hold=state.phase==='hold';
+    el.className=`card ${isRed(card.suit)?'red':'black'}${hold?' clickable':''}${state.held[i]?' held':''}`;
+    el.innerHTML=`<div class="card-corner"><div class="card-rank">${card.rank}</div><div class="card-suit-small">${card.suit}</div></div><div class="card-center">${card.suit}</div><div class="card-corner bottom"><div class="card-rank">${card.rank}</div><div class="card-suit-small">${card.suit}</div></div>`;
+    if(hold)el.onclick=()=>{state.held[i]=!state.held[i];renderHand()};
+    if(state.held[i]){const l=document.createElement('div');l.className='hold-label';l.textContent='HELD';el.appendChild(l)}
+    handEl.appendChild(el);
+  });
+}
+
+function updateControls(){
+  const n=state.n;
+  if(state.phase==='ready'){
+    dealBtn.textContent='Deal Cards';
+    info.textContent=`Playing ${n} hands. Press DEAL to receive five cards, then choose which to hold.`;
+  }else if(state.phase==='hold'){
+    dealBtn.textContent=`Draw ${n} Hands`;
+    info.textContent=`Click the cards to hold. Held cards are copied into all ${n} hands; every other card is redrawn separately in each hand.`;
+  }else{
+    dealBtn.textContent='Play Again';
+    info.textContent=`Result of ${n} hands. Tap a combination below to highlight the hands that hit it.`;
+  }
+  if(state.phase!=='final'){
+    badge.textContent='—';badge.className='combo-badge';
+    desc.textContent='';desc.className='combo-desc';
+    summaryEl.hidden=true;gridEl.innerHTML='';
+  }
+}
+
+function deal(){
+  state.hand=shuffle(buildDeck()).slice(0,5);
+  state.held=[false,false,false,false,false];
+  state.phase='hold';
+  renderPicker();renderHand();updateControls();
+}
+
+function drawAll(){
+  const used=new Set(state.hand.map(c=>c.rank+c.suit));
+  const rest=buildDeck().filter(c=>!used.has(c.rank+c.suit));
+  state.counts=COMBOS.map(()=>0);
+  state.results=[];state.filter=null;
+  for(let h=0;h<state.n;h++){
+    const d=shuffle(rest.slice());let k=0;
+    const hand=state.hand.map((c,i)=>state.held[i]?c:d[k++]);
+    const ci=evaluate(hand);
+    state.counts[ci]++;
+    state.results.push({hand,ci});
+  }
+  state.phase='final';
+  renderPicker();renderHand();updateControls();
+  const best=state.counts.findIndex(c=>c>0);
+  const hits=state.counts.slice(0,9).reduce((a,b)=>a+b,0);
+  const bestTone=comboTone(best);
+  badge.textContent=`Best: ${COMBOS[best].name}`;badge.className=`combo-badge show tone-${bestTone}`;
+  desc.textContent=`${hits} of ${state.n} hands made a pair or better`;desc.className=`combo-desc show tone-${bestTone}`;
+  renderSummary();renderGrid();
+  summaryEl.hidden=false;
+}
+
+function renderSummary(){
+  const n=state.n;
+  summaryEl.innerHTML=`<h2>Combination summary</h2><p class="sub">${n} hands. Held cards are outlined in gold inside each hand.</p>`+
+  COMBOS.map((c,i)=>{
+    const k=state.counts[i];
+    const isSelected=state.filter===i;
+    const tone=comboTone(i);
+    const dimmed=state.filter!==null&&!isSelected;
+    return `<button class="row${isSelected?' on':''}${dimmed?' dimmed':''} tone-${tone}" data-i="${i}" ${k?'':'disabled'}><span>${c.name}</span><span class="bar"><i style="width:${k/n*100}%"></i></span><span class="cnt">${k}</span><span class="pct">${(k/n*100).toFixed(1)}%</span></button>`;
+  }).join('');
+}
+summaryEl.onclick=e=>{
+  const r=e.target.closest('.row');
+  if(!r||r.disabled)return;
+  const i=+r.dataset.i;
+  state.filter=state.filter===i?null:i;
+  renderSummary();renderGrid();
+};
+
+function renderGrid(){
+  gridEl.innerHTML=state.results.map((r,i)=>{
+    const tone=comboTone(r.ci);
+    const tier=r.ci<=1?' big':r.ci<=5?' hit':'';
+    const dim=state.filter!==null&&r.ci!==state.filter?' dim':'';
+    const cards=r.hand.map((c,j)=>`<span class="mc${isRed(c.suit)?' red':''}${state.held[j]?' held':''}"><b>${c.rank}</b>${c.suit}</span>`).join('');
+    return `<div class="mh${tier?` ${tier}`:''}${tone!=='none'?` tone-${tone}`:''}${dim}"><div class="mcs">${cards}</div><div class="lab"><em>#${i+1}</em><span>${COMBOS[r.ci].name}</span></div></div>`;
+  }).join('');
+}
+
+function handleDeal(){
+  if(state.phase==='hold')drawAll();
+  else deal();
+}
+
+renderPicker();renderHand();updateControls();
+</script>
+</body>
+</html>

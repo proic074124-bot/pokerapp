@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ball Sort Builder</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0b0b1c;--panel:#111128;--card:#191934;
+  --border:rgba(140,130,220,0.2);--border2:rgba(140,130,220,0.4);
+  --text:#e2daf8;--muted:rgba(200,190,245,0.5);--dim:rgba(200,190,245,0.25);
+  --acc:#6b4fe0;--acc2:#8060f0;--accg:rgba(107,79,224,0.35);
+  --sel:#d0409a;--selg:rgba(208,64,154,0.4);
+  --ok:#28cc6a;--okg:rgba(40,204,106,0.35);
+  --danger:#e04040;--dangg:rgba(224,64,64,0.3);
+}
+body{
+  background:var(--bg);
+  background-image:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(80,50,180,0.22),transparent);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;
+  padding:14px 14px 40px;gap:10px;
+}
+
+/* ── HEADER ── */
+header{
+  width:100%;max-width:900px;
+  background:var(--panel);border:1px solid var(--border);border-radius:18px;
+  padding:13px 20px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.logo{
+  font-size:17px;font-weight:800;letter-spacing:2px;text-transform:uppercase;
+  background:linear-gradient(120deg,#a87cff,#e055a5);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.tabs{display:flex;background:var(--bg);border-radius:10px;padding:3px;gap:3px}
+.tab{
+  padding:6px 18px;border-radius:7px;border:none;background:none;
+  color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;
+}
+.tab.on{background:var(--acc);color:#fff;box-shadow:0 0 12px var(--accg)}
+
+/* ── BUILDER PANEL ── */
+#bpanel{
+  width:100%;max-width:900px;
+  background:var(--panel);border:1px solid var(--border);border-radius:14px;
+  padding:14px 18px;display:flex;flex-direction:column;gap:11px;
+}
+#bpanel.hide{display:none}
+.row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);min-width:52px;flex-shrink:0}
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+.chip{
+  min-width:32px;height:32px;padding:0 8px;border-radius:7px;
+  border:1.5px solid var(--border);background:var(--card);color:var(--text);
+  font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .15s;user-select:none;
+}
+.chip:hover{border-color:var(--acc)}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff;box-shadow:0 0 10px var(--accg)}
+.swatches{display:flex;gap:6px;flex-wrap:wrap}
+.sw{
+  width:28px;height:28px;border-radius:50%;cursor:pointer;
+  border:2.5px solid transparent;transition:all .15s;position:relative;flex-shrink:0;
+}
+.sw::before{
+  content:'';position:absolute;top:5px;left:6px;width:8px;height:5px;
+  background:rgba(255,255,255,.42);border-radius:50%;transform:rotate(-30deg);pointer-events:none;
+}
+.sw.on{border-color:#fff;transform:scale(1.2);box-shadow:0 0 8px rgba(255,255,255,.35)}
+.hint-txt{font-size:11px;color:var(--dim);text-align:center}
+
+/* ── INFO BAR ── */
+#ibar{
+  width:100%;max-width:900px;
+  background:var(--panel);border:1px solid var(--border);border-radius:12px;
+  padding:9px 20px;display:flex;justify-content:space-between;align-items:center;
+}
+#ibar.hide{display:none}
+.stat{display:flex;flex-direction:column;align-items:center;gap:1px}
+.stat-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+.stat-val{font-size:22px;font-weight:800;line-height:1}
+
+/* ── GAME AREA ── */
+#garea{
+  width:100%;max-width:900px;
+  background:var(--panel);border:1px solid var(--border);border-radius:18px;
+  padding:26px 18px;
+  display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:center;gap:12px;
+  min-height:180px;
+}
+.empty-state{
+  margin:auto;text-align:center;color:var(--dim);
+  font-size:14px;line-height:1.8;
+}
+.empty-state span{font-size:30px;display:block;margin-bottom:6px}
+
+/* ── TUBE ── */
+.tw{
+  display:flex;flex-direction:column;align-items:center;
+  --tc:rgba(140,130,220,0.25);--tg:none;
+}
+.tw.sel{--tc:var(--sel);--tg:0 0 22px var(--selg)}
+.tw.recv{--tc:var(--acc);--tg:0 0 16px var(--accg)}
+.tw.done{--tc:var(--ok);--tg:0 0 18px var(--okg)}
+.tw.bad{animation:shake .28s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+.tc{
+  width:56px;height:12px;
+  border-left:2.5px solid var(--tc);border-right:2.5px solid var(--tc);
+  transition:border-color .22s;
+}
+.tb{
+  width:56px;
+  border-left:2.5px solid var(--tc);
+  border-right:2.5px solid var(--tc);
+  border-bottom:2.5px solid var(--tc);
+  border-radius:0 0 28px 28px;
+  padding:4px 5px 10px;
+  display:flex;flex-direction:column-reverse;align-items:center;gap:3px;
+  background:rgba(70,60,180,.04);
+  cursor:pointer;position:relative;overflow:hidden;
+  height:calc(var(--tsz,4)*44px + 13px);
+  box-shadow:var(--tg);
+  transition:border-color .22s,box-shadow .22s,background .18s;
+}
+.tb::after{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(90deg,rgba(255,255,255,.035) 0%,transparent 25%,transparent 75%,rgba(255,255,255,.035) 100%);
+}
+.tb:hover{background:rgba(90,70,220,.07)}
+
+/* ── BALL ── */
+.ball{
+  width:40px;height:40px;border-radius:50%;flex-shrink:0;position:relative;
+  box-shadow:inset -3px -4px 7px rgba(0,0,0,.5),inset 2px 2px 4px rgba(255,255,255,.14),0 2px 5px rgba(0,0,0,.45);
+}
+.ball::before{
+  content:'';position:absolute;top:7px;left:8px;width:11px;height:7px;
+  background:rgba(255,255,255,.44);border-radius:50%;transform:rotate(-30deg);pointer-events:none;
+}
+/* builder top ball hover — shows × */
+.ball.rmv{cursor:pointer}
+.ball.rmv::after{
+  content:'×';position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;font-weight:700;color:transparent;transition:color .12s;
+  border-radius:50%;
+}
+.ball.rmv:hover::after{color:rgba(255,255,255,.92)}
+.ball.rmv:hover{box-shadow:inset -3px -4px 7px rgba(0,0,0,.5),inset 2px 2px 4px rgba(255,255,255,.14),0 0 0 2px rgba(255,255,255,.3)}
+
+/* landing animation */
+@keyframes land{0%{transform:scale(1.18)}40%{transform:scale(.9)}70%{transform:scale(1.06)}100%{transform:scale(1)}}
+.ball.land{animation:land .34s ease-out}
+
+/* empty slot */
+.slot{width:40px;height:40px;border-radius:50%;flex-shrink:0;border:1px dashed rgba(120,110,200,.14)}
+
+.tlbl{font-size:10px;color:var(--dim);margin-top:4px;font-weight:600;letter-spacing:.3px}
+
+/* ── ACTION BAR ── */
+#abar{width:100%;max-width:900px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.bgrp{display:flex;gap:7px;flex-wrap:wrap}
+.btn{
+  padding:9px 16px;border-radius:10px;border:1.5px solid var(--border);
+  background:var(--card);color:var(--text);font-size:13px;font-weight:600;
+  cursor:pointer;white-space:nowrap;transition:all .15s;
+}
+.btn:hover{border-color:var(--acc);background:rgba(107,79,224,.1)}
+.btn:disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff;box-shadow:0 0 14px var(--accg)}
+.btn.pri:hover{background:var(--acc2);border-color:var(--acc2);box-shadow:0 0 20px var(--accg)}
+.btn.dng{border-color:rgba(220,60,60,.35);color:rgba(255,120,120,.9)}
+.btn.dng:hover{background:rgba(220,60,60,.1);border-color:rgba(220,60,60,.55)}
+
+/* ── WIN OVERLAY ── */
+#wscr{
+  position:fixed;inset:0;background:rgba(0,0,0,.7);
+  display:flex;align-items:center;justify-content:center;
+  z-index:999;opacity:0;pointer-events:none;transition:opacity .35s;
+  backdrop-filter:blur(6px);
+}
+#wscr.show{opacity:1;pointer-events:all}
+.wbox{
+  background:var(--panel);border:1.5px solid rgba(40,204,106,.45);border-radius:22px;
+  padding:38px 34px;text-align:center;max-width:300px;width:90%;
+  box-shadow:0 0 50px rgba(40,204,106,.18);
+}
+.wico{font-size:56px;margin-bottom:12px}
+.wttl{font-size:26px;font-weight:800;color:var(--ok);margin-bottom:5px}
+.wsub{font-size:14px;color:var(--muted);margin-bottom:20px}
+.wbts{display:flex;gap:9px;justify-content:center}
+
+/* tooltip-style count badges in builder */
+.bc{
+  position:absolute;top:-6px;right:-6px;
+  background:var(--acc);color:#fff;font-size:10px;font-weight:800;
+  border-radius:10px;min-width:18px;height:18px;padding:0 4px;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 6px var(--accg);pointer-events:none;
+}
+.sw-wrap{position:relative}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">Ball Sort Builder</div>
+  <div class="tabs">
+    <button class="tab on" id="tab-b" onclick="setMode('builder')">✏ Build</button>
+    <button class="tab" id="tab-p" onclick="setMode('play')">▶ Play</button>
+  </div>
+</header>
+
+<!-- BUILDER PANEL -->
+<div id="bpanel">
+  <div class="row">
+    <span class="lbl">Tubes</span>
+    <div class="chips" id="tc-chips"></div>
+    <span class="lbl" style="min-width:40px;margin-left:8px">Size</span>
+    <div class="chips" id="ts-chips"></div>
+  </div>
+  <div class="row">
+    <span class="lbl">Color</span>
+    <div class="swatches" id="palette"></div>
+  </div>
+  <div class="hint-txt">Click a tube to add · Click the top ball (×) to remove · Right-click tube to remove top ball</div>
+</div>
+
+<!-- INFO BAR (play mode) -->
+<div id="ibar" class="hide">
+  <div class="stat">
+    <div class="stat-lbl">Moves</div>
+    <div class="stat-val" id="s-moves">0</div>
+  </div>
+  <div style="font-size:13px;color:var(--muted)" id="s-tip">Select a tube to begin</div>
+  <div class="stat" style="align-items:flex-end">
+    <div class="stat-lbl">Sorted</div>
+    <div class="stat-val" id="s-done">0/0</div>
+  </div>
+</div>
+
+<!-- GAME AREA -->
+<div id="garea">
+  <div class="empty-state">
+    <span>🧪</span>
+    Set your tube count &amp; size above,<br>pick a color, then click a tube to add balls.
+  </div>
+</div>
+
+<!-- ACTION BAR -->
+<div id="abar">
+  <div class="bgrp" id="ba-build">
+    <button class="btn dng" onclick="clearAll()">Clear All</button>
+    <button class="btn" onclick="addEmptyTube()">+ Empty Tube</button>
+  </div>
+  <div class="bgrp" id="ba-play" style="display:none">
+    <button class="btn" id="btn-undo" onclick="undo()" disabled>↩ Undo</button>
+    <button class="btn" onclick="resetPlay()">↺ Reset</button>
+  </div>
+  <div class="bgrp">
+    <button class="btn pri" id="btn-play" onclick="setMode('play')">▶ Play Puzzle</button>
+    <button class="btn" id="btn-back" style="display:none" onclick="setMode('builder')">◀ Edit</button>
+  </div>
+</div>
+
+<!-- WIN SCREEN -->
+<div id="wscr">
+  <div class="wbox">
+    <div class="wico">🎉</div>
+    <div class="wttl">Puzzle Solved!</div>
+    <div class="wsub" id="w-msg"></div>
+    <div class="wbts">
+      <button class="btn" onclick="resetPlay();closeWin()">Play Again</button>
+      <button class="btn pri" onclick="setMode('builder');closeWin()">Edit Puzzle</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────
+// COLORS  (main, light)
+// ─────────────────────────────────────────────────────
+const CLR = {
+  red:    ['#d42020','#ff6060'],
+  orange: ['#d96800','#ffaa40'],
+  yellow: ['#c09000','#ffe040'],
+  lime:   ['#3aaa00','#86e040'],
+  green:  ['#014A27','#036B39'],
+  teal:   ['#008aaa','#30d0e8'],
+  blue:   ['#1468cc','#5098f0'],
+  indigo: ['#3030a0','#7070d8'],
+  purple: ['#8020a8','#c060d8'],
+  pink:   ['#c0186a','#f060a8'],
+  brown:  ['#7a3c18','#b87850'],
+  slate:  ['#405868','#7a98b0'],
+};
+const CK = Object.keys(CLR);
+
+// ─────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────
+const S = {
+  mode:'builder',
+  tubeCount:5,tubeSize:4,
+  tubes:[],          // [['red','blue',...], ...] index 0=bottom
+  tubeSizes:[],      // individual size for each tube
+  color:'red',
+  selTube:null,
+  moves:0,
+  hist:[],           // [{from,to}]
+  snap:null,         // snapshot of initial state for reset
+  snapSizes:null,    // snapshot of tube sizes for reset
+};
+let landTube = null;
+
+// ─────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────
+function init(){
+  S.tubes = Array.from({length:S.tubeCount},()=>[]);
+  S.tubeSizes = Array.from({length:S.tubeCount},()=>S.tubeSize);
+  buildChips();buildPalette();syncCSS();render();
+}
+
+function buildChips(){
+  const tc=document.getElementById('tc-chips');
+  const ts=document.getElementById('ts-chips');
+  tc.innerHTML='';ts.innerHTML='';
+  for(let n=1;n<=20;n++){
+    const b=mk('button','chip'+(S.tubeCount===n?' on':''));
+    b.textContent=n;b.onclick=()=>setTC(n);tc.appendChild(b);
+  }
+  for(let n=1;n<=12;n++){
+    const b=mk('button','chip'+(S.tubeSize===n?' on':''));
+    b.textContent=n;b.onclick=()=>setTS(n);ts.appendChild(b);
+  }
+}
+
+function buildPalette(){
+  const p=document.getElementById('palette');p.innerHTML='';
+  // Count balls per color
+  const cnt={};
+  S.tubes.forEach(t=>t.forEach(c=>{cnt[c]=(cnt[c]||0)+1}));
+  CK.forEach(k=>{
+    const [m,l]=CLR[k];
+    const wrap=mk('div','sw-wrap');
+    const el=mk('div','sw'+(S.color===k?' on':''));
+    el.style.background=`radial-gradient(circle at 35% 35%,${l},${m})`;
+    el.title=k;el.onclick=()=>{S.color=k;buildPalette()};
+    wrap.appendChild(el);
+    if(cnt[k]){
+      const badge=mk('div','bc');badge.textContent=cnt[k];
+      wrap.appendChild(badge);
+    }
+    p.appendChild(wrap);
+  });
+}
+
+function syncCSS(){
+  document.documentElement.style.setProperty('--tsz',S.tubeSize);
+}
+
+// ─────────────────────────────────────────────────────
+// SETTINGS
+// ─────────────────────────────────────────────────────
+function setTC(n){
+  if(n===S.tubeCount)return;
+  while(S.tubes.length<n){
+    S.tubes.push([]);
+    S.tubeSizes.push(S.tubeSize);
+  }
+  while(S.tubes.length>n){
+    S.tubes.pop();
+    S.tubeSizes.pop();
+  }
+  S.tubeCount=n;buildChips();render();
+}
+function setTS(n){
+  if(n===S.tubeSize)return;
+  // Truncate existing tubes if new size is smaller
+  if(n<S.tubeSize){
+    S.tubes.forEach((t,i)=>{
+      if(t.length>n)t.length=n;
+      // Update individual sizes to new global size
+      S.tubeSizes[i]=n;
+    });
+  }else{
+    // Update individual sizes to new global size
+    S.tubeSizes.forEach((_, i)=>{S.tubeSizes[i]=n;});
+  }
+  S.tubeSize=n;syncCSS();buildChips();render();
+}
+
+// ─────────────────────────────────────────────────────
+// BUILDER ACTIONS
+// ─────────────────────────────────────────────────────
+function addBall(ti){
+  const t=S.tubes[ti];
+  const maxSize=S.tubeSizes[ti];
+  if(t.length>=maxSize)return;
+  t.push(S.color);buildPalette();render();
+}
+function removeBall(ti,e){
+  if(e){e.stopPropagation();e.preventDefault();}
+  const t=S.tubes[ti];
+  if(t.length)t.pop();buildPalette();render();
+}
+function clearAll(){
+  S.tubes=S.tubes.map(()=>[]);
+  S.tubeSizes=S.tubeSizes.map(()=>S.tubeSize);
+  buildPalette();render();
+}
+function addEmptyTube(){
+  if(S.tubes.length>=14)return;
+  const size=prompt('Set tube size (1-12):', S.tubeSize);
+  if(size===null)return;
+  const n=parseInt(size);
+  if(isNaN(n)||n<1||n>12){alert('Please enter a number between 1 and 12');return;}
+  S.tubes.push([]);
+  S.tubeSizes.push(n);
+  S.tubeCount=S.tubes.length;
+  buildChips();render();
+}
+
+// ─────────────────────────────────────────────────────
+// MODE SWITCHING
+// ─────────────────────────────────────────────────────
+function setMode(mode){
+  if(mode==='play'){
+    const tot=S.tubes.reduce((a,t)=>a+t.length,0);
+    if(!tot){alert('Add some balls before playing!');return;}
+    S.snap=S.tubes.map(t=>[...t]);
+    S.snapSizes=S.tubeSizes.map(s=>s);
+    S.selTube=null;S.moves=0;S.hist=[];
+    document.getElementById('s-moves').textContent='0';
+    document.getElementById('btn-undo').disabled=true;
+  }
+  if(mode==='builder'&&S.snap){
+    S.tubes=S.snap.map(t=>[...t]);
+    S.tubeSizes=S.snapSizes.map(s=>s);
+    S.selTube=null;
+  }
+  S.mode=mode;
+  updateModeUI();render();
+}
+function updateModeUI(){
+  const p=S.mode==='play';
+  document.getElementById('bpanel').classList.toggle('hide',p);
+  document.getElementById('ibar').classList.toggle('hide',!p);
+  document.getElementById('ba-build').style.display=p?'none':'flex';
+  document.getElementById('ba-play').style.display=p?'flex':'none';
+  document.getElementById('btn-play').style.display=p?'none':'';
+  document.getElementById('btn-back').style.display=p?'':'none';
+  document.getElementById('tab-b').classList.toggle('on',!p);
+  document.getElementById('tab-p').classList.toggle('on',p);
+}
+
+// ─────────────────────────────────────────────────────
+// PLAY LOGIC
+// ─────────────────────────────────────────────────────
+function clickTube(ti){
+  if(S.mode==='builder'){addBall(ti);return;}
+  const tube=S.tubes[ti];
+  if(S.selTube===null){
+    if(tube.length)S.selTube=ti;
+  }else if(S.selTube===ti){
+    S.selTube=null;
+  }else{
+    const ok=tryMove(S.selTube,ti);
+    if(!ok){
+      // shake the target
+      const bodyEl=document.querySelector(`.tb[data-ti="${ti}"]`);
+      if(bodyEl){
+        const tw=bodyEl.closest('.tw');
+        tw.classList.remove('bad');void tw.offsetWidth;tw.classList.add('bad');
+        setTimeout(()=>tw.classList.remove('bad'),300);
+      }
+      S.selTube=tube.length?ti:null;
+    }else{
+      S.selTube=null;
+    }
+  }
+  render();
+}
+
+function tryMove(from,to){
+  const src=S.tubes[from],dst=S.tubes[to];
+  const maxSizeTo=S.tubeSizes[to];
+  if(!src.length||dst.length>=maxSizeTo)return false;
+  const ball=src[src.length-1];
+  if(dst.length&&dst[dst.length-1]!==ball)return false;
+  src.pop();dst.push(ball);
+  S.moves++;S.hist.push({from,to});
+  document.getElementById('s-moves').textContent=S.moves;
+  document.getElementById('btn-undo').disabled=false;
+  landTube=to;
+  render();
+  if(checkWin())setTimeout(showWin,440);
+  return true;
+}
+
+function undo(){
+  if(!S.hist.length)return;
+  const{from,to}=S.hist.pop();
+  const ball=S.tubes[to].pop();
+  S.tubes[from].push(ball);
+  S.moves=Math.max(0,S.moves-1);
+  S.selTube=null;
+  document.getElementById('s-moves').textContent=S.moves;
+  document.getElementById('btn-undo').disabled=!S.hist.length;
+  render();
+}
+function resetPlay(){
+  if(S.snap)S.tubes=S.snap.map(t=>[...t]);
+  S.selTube=null;S.moves=0;S.hist=[];
+  document.getElementById('s-moves').textContent='0';
+  document.getElementById('btn-undo').disabled=true;
+  render();
+}
+
+// ─────────────────────────────────────────────────────
+// WIN CHECK
+// ─────────────────────────────────────────────────────
+function checkWin(){
+  // Must have at least one ball to win
+  const totalBalls=S.tubes.reduce((a,t)=>a+t.length,0);
+  if(totalBalls===0)return false;
+  
+  // Every non-empty tube must be monochromatic and completely full
+  for(let i=0;i<S.tubes.length;i++){
+    const t=S.tubes[i];
+    const maxSize=S.tubeSizes[i];
+    if(t.length===0)continue; // Empty tubes are OK
+    // Non-empty tube must be full and monochromatic
+    if(t.length!==maxSize||!t.every(b=>b===t[0]))return false;
+  }
+  
+  // Each color must appear in exactly one tube
+  const seen={};
+  for(let i=0;i<S.tubes.length;i++){
+    if(!S.tubes[i].length)continue;
+    const c=S.tubes[i][0];
+    if(seen[c]!==undefined)return false; // Color already seen in another tube
+    seen[c]=i;
+  }
+  
+  return true;
+}
+function sortedTubes(){
+  return S.tubes.filter((t,i)=>t.length&&t.length===S.tubeSizes[i]&&t.every(b=>b===t[0])).length;
+}
+function totalColors(){
+  const s=new Set();S.tubes.forEach(t=>t.forEach(b=>s.add(b)));return s.size;
+}
+
+// ─────────────────────────────────────────────────────
+// WIN OVERLAY
+// ─────────────────────────────────────────────────────
+function showWin(){
+  document.getElementById('w-msg').textContent=
+    `Solved in ${S.moves} move${S.moves!==1?'s':''}!`;
+  document.getElementById('wscr').classList.add('show');
+}
+function closeWin(){document.getElementById('wscr').classList.remove('show')}
+
+// ─────────────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────────────
+function ballStyle(k){
+  const[m,l]=CLR[k];
+  return`background:radial-gradient(circle at 35% 35%,${l},${m})`;
+}
+
+function render(){
+  const area=document.getElementById('garea');
+  area.innerHTML='';
+  const totalBalls=S.tubes.reduce((a,t)=>a+t.length,0);
+  if(!totalBalls&&S.mode==='builder'){
+    area.innerHTML='<div class="empty-state"><span>🧪</span>Pick a color above,<br>then click a tube to add balls.</div>';
+    // Still need to render tubes for clicking
+  }
+
+  // Info bar update
+  if(S.mode==='play'){
+    const tc=totalColors();
+    const sd=sortedTubes();
+    document.getElementById('s-done').textContent=`${sd}/${tc}`;
+    document.getElementById('s-tip').textContent=
+      S.selTube!==null?'Now pick where to drop it':'Select a tube to move its top ball';
+  }
+
+  // Identify move state
+  let moveBall=null;
+  if(S.mode==='play'&&S.selTube!==null){
+    const src=S.tubes[S.selTube];
+    if(src.length)moveBall=src[src.length-1];
+  }
+
+  const lt=landTube;landTube=null;
+
+  S.tubes.forEach((tube,ti)=>{
+    const tw=mk('div','tw');
+    const tubeSize=S.tubeSizes[ti];
+
+    // State classes
+    if(S.mode==='play'){
+      if(S.selTube===ti)tw.classList.add('sel');
+      else if(moveBall!==null){
+        const canRecv=tube.length<tubeSize&&(tube.length===0||tube[tube.length-1]===moveBall);
+        if(canRecv)tw.classList.add('recv');
+      }
+      // Fully sorted tube
+      if(tube.length===tubeSize&&tube.every(b=>b===tube[0])){
+        tw.classList.add('done');
+      }
+    }
+
+    // Color-match border for monochromatic tubes in play mode
+    if(S.mode==='play'&&tube.length>0&&tube.every(b=>b===tube[0])&&!tw.classList.contains('sel')&&!tw.classList.contains('recv')){
+      const[m]=CLR[tube[0]];
+      tw.style.setProperty('--tc',m+'99');
+    }
+
+    // Tube collar
+    const collar=mk('div','tc');tw.appendChild(collar);
+
+    // Tube body
+    const body=mk('div','tb');
+    body.dataset.ti=ti;
+    body.onclick=()=>clickTube(ti);
+    body.oncontextmenu=(e)=>{e.preventDefault();if(S.mode==='builder')removeBall(ti,e)};
+    // Apply individual tube size via CSS custom property
+    body.style.setProperty('--tsz',tubeSize);
+
+    // Render balls FIRST (column-reverse: first=bottom)
+    tube.forEach((color,bi)=>{
+      const ball=mk('div','ball');
+      ball.setAttribute('style',ballStyle(color));
+      // Landing animation on the freshly-placed ball
+      if(ti===lt&&bi===tube.length-1)ball.classList.add('land');
+      // Builder: top ball gets remove button style
+      if(S.mode==='builder'&&bi===tube.length-1){
+        ball.classList.add('rmv');
+        ball.onclick=(e)=>{e.stopPropagation();removeBall(ti,null);};
+      }
+      body.appendChild(ball);
+    });
+
+    // Render empty slots AFTER (appear at top visually)
+    for(let s=tube.length;s<tubeSize;s++){
+      body.appendChild(mk('div','slot'));
+    }
+
+    // Label
+    const lbl=mk('div','tlbl');lbl.textContent=`T${ti+1}`;
+
+    tw.appendChild(body);tw.appendChild(lbl);
+    area.appendChild(tw);
+  });
+
+  // If we just cleared area and added empty-state, tubes are still added after
+  if(!totalBalls&&S.mode==='builder'){
+    // move empty-state before tubes
+    const es=area.querySelector('.empty-state');
+    if(es)area.insertBefore(es,area.firstChild);
+  }
+
+  buildPalette();
+}
+
+// ─────────────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────────────
+function mk(tag,cls){
+  const el=document.createElement(tag);
+  if(cls)el.className=cls;
+  return el;
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown',e=>{
+  if(S.mode!=='play')return;
+  if(e.key==='z'&&(e.ctrlKey||e.metaKey)){e.preventDefault();undo();}
+  if(e.key==='Escape'){S.selTube=null;render();}
+});
+
+// Go!
+init();
+</script>
+</body>
+</html>

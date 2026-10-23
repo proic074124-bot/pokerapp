@@ -1,0 +1,503 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Poker</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --felt: #1a3a2a;
+    --felt-light: #22503a;
+    --felt-dark: #0f2218;
+    --gold: #c9a84c;
+    --gold-light: #e8c97a;
+    --card-white: #faf8f3;
+    --red: #cc2222;
+    --dark: #0a0a0a;
+    --text-muted: #7a9a88;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--felt-dark);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.015) 2px, rgba(255,255,255,0.015) 4px),
+      repeating-linear-gradient(-45deg, transparent, transparent 2px, rgba(255,255,255,0.015) 2px, rgba(255,255,255,0.015) 4px);
+    pointer-events: none;
+  }
+
+  .table {
+    width: min(920px, 96vw);
+    padding: 40px 30px 58px;
+    position: relative;
+  }
+
+  .table::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 60px;
+    background: linear-gradient(135deg, var(--gold) 0%, #8b6914 50%, var(--gold-light) 100%);
+    z-index: -1;
+  }
+
+  .table::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 58px;
+    background: radial-gradient(ellipse at 30% 30%, var(--felt-light), var(--felt-dark));
+    z-index: -1;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 900;
+    color: var(--gold);
+    letter-spacing: 0.08em;
+    text-shadow: 0 2px 20px rgba(201,168,76,0.4);
+  }
+
+  header p {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+
+  .instructions {
+    color: var(--text-muted);
+    font-size: 0.86rem;
+    text-align: center;
+    margin-bottom: 24px;
+    max-width: 760px;
+    line-height: 1.6;
+  }
+
+  .hand {
+    display: flex;
+    justify-content: center;
+    gap: clamp(10px, 2vw, 20px);
+    margin-bottom: 30px;
+    perspective: 800px;
+    min-height: 190px;
+    align-items: flex-end;
+  }
+
+  .card {
+    width: clamp(84px, 12vw, 110px);
+    height: clamp(130px, 18vw, 160px);
+    background: var(--card-white);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 10px 12px;
+    box-shadow:
+      0 4px 6px rgba(0,0,0,0.35),
+      0 10px 30px rgba(0,0,0,0.4),
+      inset 0 1px 0 rgba(255,255,255,0.9);
+    position: relative;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    cursor: default;
+    user-select: none;
+  }
+
+  .card.clickable {
+    cursor: pointer;
+  }
+
+  .card:hover.clickable {
+    transform: translateY(-10px);
+  }
+
+  .card.held {
+    border: 3px solid rgba(201,168,76,0.9);
+    transform: translateY(-10px);
+    box-shadow:
+      0 12px 30px rgba(0,0,0,0.45),
+      0 4px 8px rgba(0,0,0,0.3),
+      inset 0 1px 0 rgba(255,255,255,0.9);
+  }
+
+  .card.red { color: var(--red); }
+  .card.black { color: #111; }
+
+  .card-corner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1;
+  }
+
+  .card-corner.bottom {
+    transform: rotate(180deg);
+    align-self: flex-end;
+  }
+
+  .card-rank {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1rem, 2.5vw, 1.4rem);
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .card-suit-small {
+    font-size: clamp(0.75rem, 1.8vw, 0.95rem);
+    line-height: 1;
+    margin-top: 1px;
+  }
+
+  .card-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1;
+  }
+
+  .hold-label {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    background: rgba(201,168,76,0.96);
+    color: #111;
+    pointer-events: none;
+  }
+
+  .result-area {
+    text-align: center;
+    min-height: 92px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .combo-badge {
+    display: inline-block;
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.2rem, 3vw, 1.8rem);
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+    padding: 10px 32px;
+    border: 2px solid var(--gold);
+    border-radius: 4px;
+    background: rgba(201,168,76,0.08);
+    box-shadow: 0 0 30px rgba(201,168,76,0.2);
+    opacity: 0;
+    transform: scale(0.92);
+    transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .combo-badge.show {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .combo-desc {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 0.4s ease 0.1s;
+  }
+
+  .combo-desc.show { opacity: 1; }
+
+  .deal-btn {
+    display: block;
+    margin: 36px auto 0;
+    padding: 16px 52px;
+    background: linear-gradient(135deg, var(--gold) 0%, #a07828 100%);
+    color: var(--dark);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(201,168,76,0.3), 0 2px 4px rgba(0,0,0,0.4);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .deal-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+    transition: left 0.4s ease;
+  }
+
+  .deal-btn:hover::before { left: 100%; }
+
+  .deal-btn:hover { transform: translateY(-2px); }
+  .deal-btn:active { transform: translateY(0); }
+  .deal-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+  .chips {
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+  }
+
+  .chip {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.3);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  }
+
+  .chip.red-chip { background: #cc3333; }
+  .chip.blue-chip { background: #3355cc; }
+  .chip.green-chip { background: #228833; }
+  .chip.black-chip { background: #222; }
+  .chip.gold-chip { background: var(--gold); }
+</style>
+</head>
+<body>
+
+<div class="table">
+  <header>
+    <h1>Video Poker</h1>
+    <p>Draw 5 cards, hold the best ones, then draw replacements.</p>
+  </header>
+
+  <div class="instructions" id="instructions">
+    Click any card to toggle hold. Then press the button to draw new cards for every card you did not hold.
+  </div>
+
+  <div class="hand" id="hand"></div>
+
+  <div class="result-area">
+    <div class="combo-badge" id="comboBadge">—</div>
+    <div class="combo-desc" id="comboDesc"></div>
+  </div>
+
+  <button class="deal-btn" id="dealBtn" onclick="handleDeal()">Deal Cards</button>
+
+  <div class="chips">
+    <div class="chip black-chip"></div>
+    <div class="chip blue-chip"></div>
+    <div class="chip red-chip"></div>
+    <div class="chip green-chip"></div>
+    <div class="chip gold-chip"></div>
+    <div class="chip red-chip"></div>
+    <div class="chip blue-chip"></div>
+    <div class="chip black-chip"></div>
+  </div>
+</div>
+
+<script>
+  const SUITS = ['♠','♥','♦','♣'];
+  const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+  const RANK_VAL = Object.fromEntries(RANKS.map((rank, index) => [rank, index + 2]));
+
+  const COMBOS = [
+    { name: 'Royal Flush',     desc: 'A, K, Q, J, 10 — same suit',      cls: 'rank-royal' },
+    { name: 'Straight Flush',  desc: 'Five consecutive cards of same suit', cls: 'rank-straight-flush' },
+    { name: 'Four of a Kind',  desc: 'Four cards of one rank',          cls: 'rank-four' },
+    { name: 'Full House',      desc: 'Three of a kind plus a pair',      cls: 'rank-full-house' },
+    { name: 'Flush',           desc: 'Five cards of the same suit',      cls: 'rank-flush' },
+    { name: 'Straight',        desc: 'Five consecutive cards',            cls: '' },
+    { name: 'Three of a Kind', desc: 'Three cards of the same rank',     cls: '' },
+    { name: 'Two Pair',        desc: 'Two different pairs',              cls: '' },
+    { name: 'One Pair',        desc: 'Two cards of the same rank',       cls: '' },
+    { name: 'High Card',       desc: 'No combination — highest card wins', cls: '' },
+  ];
+
+  const state = {
+    deck: [],
+    hand: [],
+    held: [false, false, false, false, false],
+    phase: 'ready',
+  };
+
+  const handElement = document.getElementById('hand');
+  const comboBadge = document.getElementById('comboBadge');
+  const comboDesc = document.getElementById('comboDesc');
+  const dealBtn = document.getElementById('dealBtn');
+  const instructions = document.getElementById('instructions');
+
+  function buildDeck() {
+    return SUITS.flatMap(suit => RANKS.map(rank => ({ rank, suit })));
+  }
+
+  function shuffle(deck) {
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    return deck;
+  }
+
+  function isRed(suit) {
+    return suit === '♥' || suit === '♦';
+  }
+
+  function evaluate(hand) {
+    const suits = hand.map(card => card.suit);
+    const ranks = hand.map(card => card.rank);
+    const values = ranks.map(rank => RANK_VAL[rank]).sort((a, b) => a - b);
+    const uniqueSuits = new Set(suits).size === 1;
+    const uniqueValues = new Set(values).size === 5;
+    const isStraight = uniqueValues && ((values[4] - values[0] === 4) || values.join(',') === '2,3,4,5,14');
+    const frequency = values.reduce((acc, value) => {
+      acc[value] = (acc[value] || 0) + 1;
+      return acc;
+    }, {});
+    const counts = Object.values(frequency).sort((a, b) => b - a);
+    const hasRoyal = uniqueSuits && ['10','J','Q','K','A'].every(rank => ranks.includes(rank));
+
+    if (hasRoyal) return COMBOS[0];
+    if (uniqueSuits && isStraight) return COMBOS[1];
+    if (counts[0] === 4) return COMBOS[2];
+    if (counts[0] === 3 && counts[1] === 2) return COMBOS[3];
+    if (uniqueSuits) return COMBOS[4];
+    if (isStraight) return COMBOS[5];
+    if (counts[0] === 3) return COMBOS[6];
+    if (counts[0] === 2 && counts[1] === 2) return COMBOS[7];
+    if (counts[0] === 2) return COMBOS[8];
+    return COMBOS[9];
+  }
+
+  function renderCard(card, index) {
+    const cardElement = document.createElement('div');
+    cardElement.className = `card ${isRed(card.suit) ? 'red' : 'black'} clickable`;
+    if (state.held[index]) {
+      cardElement.classList.add('held');
+    }
+    cardElement.dataset.index = index;
+    cardElement.innerHTML = `
+      <div class="card-corner">
+        <div class="card-rank">${card.rank}</div>
+        <div class="card-suit-small">${card.suit}</div>
+      </div>
+      <div class="card-center">${card.suit}</div>
+      <div class="card-corner bottom">
+        <div class="card-rank">${card.rank}</div>
+        <div class="card-suit-small">${card.suit}</div>
+      </div>
+    `;
+
+    if (state.phase === 'hold') {
+      cardElement.onclick = () => toggleHold(index);
+      if (state.held[index]) {
+        const holdLabel = document.createElement('div');
+        holdLabel.className = 'hold-label';
+        holdLabel.textContent = 'Held';
+        cardElement.appendChild(holdLabel);
+      }
+    }
+
+    return cardElement;
+  }
+
+  function renderHand() {
+    handElement.innerHTML = '';
+    state.hand.forEach((card, index) => {
+      handElement.appendChild(renderCard(card, index));
+    });
+  }
+
+  function updateControls() {
+    if (state.phase === 'ready') {
+      dealBtn.textContent = 'Deal Cards';
+      instructions.textContent = 'Press DEAL to receive five cards. Then choose the cards you want to hold before drawing replacements.';
+      comboBadge.textContent = '—';
+      comboDesc.textContent = '';
+      comboBadge.className = 'combo-badge';
+      comboDesc.className = 'combo-desc';
+    } else if (state.phase === 'hold') {
+      dealBtn.textContent = 'Draw Cards';
+      instructions.textContent = 'Click cards you want to keep face-up, then press DRAW CARDS to replace the others.';
+    } else if (state.phase === 'final') {
+      dealBtn.textContent = 'Play Again';
+      instructions.textContent = 'Your final hand is shown below. Press PLAY AGAIN to start a new round.';
+    }
+  }
+
+  function toggleHold(index) {
+    if (state.phase !== 'hold') return;
+    state.held[index] = !state.held[index];
+    renderHand();
+  }
+
+  function drawInitialHand() {
+    state.deck = shuffle(buildDeck());
+    state.hand = state.deck.splice(0, 5);
+    state.held = [false, false, false, false, false];
+    state.phase = 'hold';
+    renderHand();
+    updateControls();
+  }
+
+  function drawReplacementCards() {
+    state.hand = state.hand.map((card, index) => {
+      return state.held[index] ? card : state.deck.shift();
+    });
+    state.phase = 'final';
+    renderHand();
+    const combo = evaluate(state.hand);
+    comboBadge.textContent = combo.name;
+    comboBadge.className = `combo-badge show ${combo.cls}`;
+    comboDesc.textContent = combo.desc;
+    comboDesc.className = 'combo-desc show';
+    updateControls();
+  }
+
+  function handleDeal() {
+    if (state.phase === 'ready' || state.phase === 'final') {
+      drawInitialHand();
+      return;
+    }
+    if (state.phase === 'hold') {
+      drawReplacementCards();
+    }
+  }
+
+  window.addEventListener('load', () => {
+    updateControls();
+  });
+</script>
+</body>
+</html>
