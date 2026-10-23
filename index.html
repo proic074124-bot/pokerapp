@@ -56,10 +56,13 @@ header p{color:var(--text-muted);font-size:.8rem;letter-spacing:.15em;text-trans
 .deal-btn:hover{transform:translateY(-2px)}.deal-btn:active{transform:none}
 .deal-btn[hidden]{display:none}
 .view-warning{display:block;margin-bottom:8px;color:#8b0000;font-size:.75rem;letter-spacing:0;line-height:1.5;text-transform:none}
+.view-all-action{text-align:center;margin-top:20px}
+.view-all-action .deal-btn{margin:0 auto}
 button:focus-visible{outline:2px solid var(--gold-light);outline-offset:2px}
 .summary{margin-top:34px;padding:18px clamp(10px,2vw,22px);background:rgba(0,0,0,.25);border:1px solid rgba(201,168,76,.3);border-radius:10px}
 .summary h2{font-family:'Playfair Display',serif;color:var(--gold);font-size:1.3rem}
 .summary .sub{color:var(--text-muted);font-size:.78rem;margin:4px 0 10px;line-height:1.5}
+.summary .hint{color:#b7ff4a;font-size:.78rem;margin-top:12px;line-height:1.5}
 .row{display:grid;grid-template-columns:minmax(104px,150px) 1fr 38px 54px;align-items:center;gap:12px;width:100%;padding:8px 12px;margin-top:3px;background:transparent;border:1px solid rgba(255,255,255,.08);border-radius:6px;color:var(--card-white);font:inherit;font-size:.8rem;text-align:left;cursor:pointer;transition:border-color .2s,background .2s,box-shadow .2s,opacity .2s,filter .2s}
 .row:hover:not(:disabled){background:rgba(201,168,76,.08)}
 .row.on{border-color:var(--gold);background:rgba(201,168,76,.12)}
@@ -112,7 +115,10 @@ button:focus-visible{outline:2px solid var(--gold-light);outline-offset:2px}
   <button class="deal-btn" id="dealBtn" onclick="handleDeal()">Deal Cards</button>
   <section class="summary" id="summary" hidden></section>
   <div class="grid" id="grid"></div>
-  <button class="deal-btn" id="viewAllBtn" hidden><span class="view-warning">⚠ กดปุ่มนี้ระวังค้าง เพราะผลลัพธ์มีจำนวนมาก</span><span>View All Results</span></button>
+  <div class="view-all-action" id="viewAllAction" hidden>
+    <p class="view-warning">⚠ กดปุ่มนี้ระวังค้าง เพราะผลลัพธ์มีจำนวนมาก</p>
+    <button class="deal-btn" id="viewAllBtn">View All Results</button>
+  </div>
 </div>
 
 <script>
@@ -134,7 +140,7 @@ const COMBOS=[
 ];
 const state={hand:[],held:[false,false,false,false,false],phase:'ready',n:10,results:[],counts:[],filter:null,resultsRevealed:false};
 const $=id=>document.getElementById(id);
-const handEl=$('hand'),badge=$('comboBadge'),desc=$('comboDesc'),dealBtn=$('dealBtn'),viewAllBtn=$('viewAllBtn'),info=$('instructions'),picker=$('picker'),summaryEl=$('summary'),gridEl=$('grid');
+const handEl=$('hand'),badge=$('comboBadge'),desc=$('comboDesc'),dealBtn=$('dealBtn'),viewAllBtn=$('viewAllBtn'),viewAllAction=$('viewAllAction'),info=$('instructions'),picker=$('picker'),summaryEl=$('summary'),gridEl=$('grid');
 
 const buildDeck=()=>SUITS.flatMap(suit=>RANKS.map(rank=>({rank,suit})));
 const isRed=s=>s==='♥'||s==='♦';
@@ -213,7 +219,7 @@ function updateControls(){
     badge.textContent='—';badge.className='combo-badge';
     desc.textContent='';desc.className='combo-desc';
     summaryEl.hidden=true;gridEl.innerHTML='';
-    viewAllBtn.hidden=true;
+    viewAllAction.hidden=true;
   }
 }
 
@@ -244,7 +250,7 @@ function drawAll(){
   badge.textContent=`Best: ${COMBOS[best].name}`;badge.className=`combo-badge show tone-${bestTone}`;
   desc.textContent=`${hits} of ${state.n} hands made a pair or better`;desc.className=`combo-desc show tone-${bestTone}`;
   renderSummary();renderGrid();
-  viewAllBtn.hidden=state.results.length<2500;
+  viewAllAction.hidden=state.results.length<2500;
   summaryEl.hidden=false;
 }
 
@@ -257,7 +263,7 @@ function renderSummary(){
     const tone=comboTone(i);
     const dimmed=state.filter!==null&&!isSelected;
     return `<button class="row${isSelected?' on':''}${dimmed?' dimmed':''} tone-${tone}" data-i="${i}" ${k?'':'disabled'}><span>${c.name}</span><span class="bar"><i style="width:${k/n*100}%"></i></span><span class="cnt">${k}</span><span class="pct">${(k/n*100).toFixed(1)}%</span></button>`;
-  }).join('');
+  }).join('')+'<p class="hint">สามารถกดดูแต่ละ combination ได้ ว่าแต่ละอันออกรอบที่เท่าใหร่บ้าง รอบที่จะขึ้นเป็น #รอบที่</p>';
 }
 summaryEl.onclick=e=>{
   const r=e.target.closest('.row');
@@ -270,7 +276,7 @@ viewAllBtn.onclick=()=>{
   state.resultsRevealed=true;
   state.filter=null;
   renderSummary();renderGrid();
-  viewAllBtn.hidden=true;
+  viewAllAction.hidden=true;
 };
 
 function renderGrid(){
