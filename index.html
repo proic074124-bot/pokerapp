@@ -54,6 +54,8 @@ header p{color:var(--text-muted);font-size:.8rem;letter-spacing:.15em;text-trans
 .combo-desc.tone-white{color:#fff}
 .deal-btn{display:block;margin:30px auto 0;padding:16px 52px;background:linear-gradient(135deg,var(--gold),#a07828);color:var(--dark);font-family:inherit;font-size:.9rem;font-weight:500;letter-spacing:.2em;text-transform:uppercase;border:none;border-radius:4px;cursor:pointer;box-shadow:0 4px 20px rgba(201,168,76,.3),0 2px 4px rgba(0,0,0,.4);transition:transform .15s}
 .deal-btn:hover{transform:translateY(-2px)}.deal-btn:active{transform:none}
+.deal-btn[hidden]{display:none}
+.view-warning{display:block;margin-bottom:8px;color:#8b0000;font-size:.75rem;letter-spacing:0;line-height:1.5;text-transform:none}
 button:focus-visible{outline:2px solid var(--gold-light);outline-offset:2px}
 .summary{margin-top:34px;padding:18px clamp(10px,2vw,22px);background:rgba(0,0,0,.25);border:1px solid rgba(201,168,76,.3);border-radius:10px}
 .summary h2{font-family:'Playfair Display',serif;color:var(--gold);font-size:1.3rem}
@@ -110,6 +112,7 @@ button:focus-visible{outline:2px solid var(--gold-light);outline-offset:2px}
   <button class="deal-btn" id="dealBtn" onclick="handleDeal()">Deal Cards</button>
   <section class="summary" id="summary" hidden></section>
   <div class="grid" id="grid"></div>
+  <button class="deal-btn" id="viewAllBtn" hidden><span class="view-warning">⚠ กดปุ่มนี้ระวังค้าง เพราะผลลัพธ์มีจำนวนมาก</span><span>View All Results</span></button>
 </div>
 
 <script>
@@ -129,9 +132,9 @@ const COMBOS=[
   {name:'One Pair',desc:'Two cards of the same rank'},
   {name:'High Card',desc:'No combination'}
 ];
-const state={hand:[],held:[false,false,false,false,false],phase:'ready',n:10,results:[],counts:[],filter:null};
+const state={hand:[],held:[false,false,false,false,false],phase:'ready',n:10,results:[],counts:[],filter:null,resultsRevealed:false};
 const $=id=>document.getElementById(id);
-const handEl=$('hand'),badge=$('comboBadge'),desc=$('comboDesc'),dealBtn=$('dealBtn'),info=$('instructions'),picker=$('picker'),summaryEl=$('summary'),gridEl=$('grid');
+const handEl=$('hand'),badge=$('comboBadge'),desc=$('comboDesc'),dealBtn=$('dealBtn'),viewAllBtn=$('viewAllBtn'),info=$('instructions'),picker=$('picker'),summaryEl=$('summary'),gridEl=$('grid');
 
 const buildDeck=()=>SUITS.flatMap(suit=>RANKS.map(rank=>({rank,suit})));
 const isRed=s=>s==='♥'||s==='♦';
@@ -202,12 +205,15 @@ function updateControls(){
     info.textContent=`Click the cards to hold. Held cards are copied into all ${n} hands; every other card is redrawn separately in each hand.`;
   }else{
     dealBtn.textContent='Play Again';
-    info.textContent=`Result of ${n} hands. Tap a combination below to show only the hands that hit it.`;
+    info.textContent=state.results.length>=2500
+      ?`Result of ${n} hands. Tap a combination below to view that type, or use VIEW ALL RESULTS to show every hand.`
+      :`Result of ${n} hands. Tap a combination below to show only the hands that hit it.`;
   }
   if(state.phase!=='final'){
     badge.textContent='—';badge.className='combo-badge';
     desc.textContent='';desc.className='combo-desc';
     summaryEl.hidden=true;gridEl.innerHTML='';
+    viewAllBtn.hidden=true;
   }
 }
 
@@ -222,7 +228,7 @@ function drawAll(){
   const used=new Set(state.hand.map(c=>c.rank+c.suit));
   const rest=buildDeck().filter(c=>!used.has(c.rank+c.suit));
   state.counts=COMBOS.map(()=>0);
-  state.results=[];state.filter=null;
+  state.results=[];state.filter=null;state.resultsRevealed=false;
   for(let h=0;h<state.n;h++){
     const d=shuffle(rest.slice());let k=0;
     const hand=state.hand.map((c,i)=>state.held[i]?c:d[k++]);
@@ -238,6 +244,7 @@ function drawAll(){
   badge.textContent=`Best: ${COMBOS[best].name}`;badge.className=`combo-badge show tone-${bestTone}`;
   desc.textContent=`${hits} of ${state.n} hands made a pair or better`;desc.className=`combo-desc show tone-${bestTone}`;
   renderSummary();renderGrid();
+  viewAllBtn.hidden=state.results.length<2500;
   summaryEl.hidden=false;
 }
 
@@ -259,8 +266,18 @@ summaryEl.onclick=e=>{
   state.filter=state.filter===i?null:i;
   renderSummary();renderGrid();
 };
+viewAllBtn.onclick=()=>{
+  state.resultsRevealed=true;
+  state.filter=null;
+  renderSummary();renderGrid();
+  viewAllBtn.hidden=true;
+};
 
 function renderGrid(){
+  if(state.results.length>=2500&&!state.resultsRevealed&&state.filter===null){
+    gridEl.innerHTML='';
+    return;
+  }
   gridEl.innerHTML=state.results.flatMap((r,i)=>{
     if(state.filter!==null&&r.ci!==state.filter)return [];
     const tone=comboTone(r.ci);
