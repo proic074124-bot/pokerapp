@@ -37,7 +37,7 @@ header p{color:var(--text-muted);font-size:.8rem;letter-spacing:.15em;text-trans
 @keyframes draw-new{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 .card.back{background:repeating-linear-gradient(45deg,#12301f,#12301f 6px,#1c4730 6px,#1c4730 12px);border:4px solid var(--card-white)}
 .card.red{color:var(--red)}.card.black{color:#111}
-.card-corner{display:flex;flex-direction:column;align-items:center;line-height:1}
+.card-corner{display:flex;flex-direction:column;align-items:flex-start;line-height:1}
 .card-corner.bottom{transform:rotate(180deg);align-self:flex-end}
 .card-rank{font-family:'Playfair Display',serif;font-size:clamp(.9rem,2.5vw,1.4rem);font-weight:700}
 .card-suit-small{font-size:clamp(.7rem,1.8vw,.95rem);margin-top:1px}
@@ -87,6 +87,8 @@ button:focus-visible{outline:2px solid var(--gold-light);outline-offset:2px}
 .bar i{display:block;height:100%;background:linear-gradient(90deg,#8b6914,var(--gold-light))}
 .cnt{text-align:right;color:var(--gold-light);font-weight:500}.pct{text-align:right;color:var(--text-muted)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:22px}
+.grid.large-results .mh{box-shadow:none;transition:none}
+.grid.large-results .mh:hover{transform:none}
 .mh{padding:8px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.08);border-radius:8px;transition:opacity .2s,transform .2s,box-shadow .2s;transform:translateY(0)}
 .mh.hit{border-color:rgba(201,168,76,.45)}
 .mh.big{border-color:var(--gold);box-shadow:0 0 0 1px rgba(201,168,76,.6),0 0 20px rgba(201,168,76,.3),0 0 28px rgba(201,168,76,.22)}
@@ -97,7 +99,7 @@ button:focus-visible{outline:2px solid var(--gold-light);outline-offset:2px}
 .mh.tone-white{border-color:rgba(255,255,255,.95);background:linear-gradient(180deg,rgba(255,255,255,.1),rgba(0,0,0,.22));box-shadow:0 0 0 1px rgba(255,255,255,.75),0 0 18px rgba(255,255,255,.42),0 0 34px rgba(255,255,255,.2)}
 .mh:hover{transform:translateY(-2px)}
 .mcs{display:flex;gap:3px}
-.mc{flex:1;aspect-ratio:5/7;background:var(--card-white);color:#111;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:.72rem;line-height:1.15;border:2px solid transparent}
+.mc{flex:1;aspect-ratio:5/7;background:var(--card-white);color:#111;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:.72rem;font-weight:500;line-height:1.15;border:2px solid transparent}
 .mc.red{color:var(--red)}
 .mc.held{border-color:var(--gold)}
 .lab{margin-top:6px;font-size:.7rem;color:var(--card-white);display:flex;justify-content:space-between;gap:6px}
@@ -144,9 +146,10 @@ const COMBOS=[
   {name:'One Pair',desc:'Two cards of the same rank'},
   {name:'High Card',desc:'No combination'}
 ];
-const state={hand:[],held:[false,false,false,false,false],phase:'ready',n:10,results:[],counts:[],filter:null,resultsRevealed:false};
+const state={hand:[],held:[false,false,false,false,false],phase:'ready',n:10,results:[],counts:[],filter:null};
 const $=id=>document.getElementById(id);
 const handEl=$('hand'),badge=$('comboBadge'),desc=$('comboDesc'),dealBtn=$('dealBtn'),viewAllBtn=$('viewAllBtn'),viewAllAction=$('viewAllAction'),info=$('instructions'),picker=$('picker'),summaryEl=$('summary'),gridEl=$('grid');
+let gridRenderId=0;
 
 const buildDeck=()=>SUITS.flatMap(suit=>RANKS.map(rank=>({rank,suit})));
 const isRed=s=>s==='♥'||s==='♦';
@@ -250,7 +253,7 @@ function drawAll(){
   const used=new Set(state.hand.map(c=>c.rank+c.suit));
   const rest=buildDeck().filter(c=>!used.has(c.rank+c.suit));
   state.counts=COMBOS.map(()=>0);
-  state.results=[];state.filter=null;state.resultsRevealed=false;
+  state.results=[];state.filter=null;
   for(let h=0;h<state.n;h++){
     const d=shuffle(rest.slice());let k=0;
     const hand=state.hand.map((c,i)=>state.held[i]?c:d[k++]);
@@ -277,7 +280,7 @@ function renderSummary(){
     const k=state.counts[i];
     const isSelected=state.filter===i;
     const tone=comboTone(i);
-    const dimmed=state.filter!==null&&!isSelected;
+    const dimmed=Number.isInteger(state.filter)&&!isSelected;
     return `<button class="row${isSelected?' on':''}${dimmed?' dimmed':''} tone-${tone}" data-i="${i}" ${k?'':'disabled'}><span>${c.name}</span><span class="bar"><i style="width:${k/n*100}%"></i></span><span class="cnt">${k}</span><span class="pct">${(k/n*100).toFixed(1)}%</span></button>`;
   }).join('')+'<p class="hint">สามารถกดดูแต่ละ combination ได้ ว่าแต่ละอันออกรอบที่เท่าใหร่บ้าง รอบที่จะขึ้นเป็น #รอบที่</p>';
 }
@@ -286,27 +289,43 @@ summaryEl.onclick=e=>{
   if(!r||r.disabled)return;
   const i=+r.dataset.i;
   state.filter=state.filter===i?null:i;
+  viewAllAction.hidden=state.results.length<1000||state.filter!==null;
   renderSummary();renderGrid();
 };
 viewAllBtn.onclick=()=>{
-  state.resultsRevealed=true;
-  state.filter=null;
+  state.filter='all';
   renderSummary();renderGrid();
   viewAllAction.hidden=true;
 };
 
 function renderGrid(){
-  if(state.results.length>=1000&&!state.resultsRevealed&&state.filter===null){
+  const renderId=++gridRenderId;
+  const largeResults=state.results.length>=1000;
+  gridEl.classList.toggle('large-results',largeResults);
+  if(largeResults&&state.filter===null){
     gridEl.innerHTML='';
     return;
   }
-  gridEl.innerHTML=state.results.flatMap((r,i)=>{
-    if(state.filter!==null&&r.ci!==state.filter)return [];
-    const tone=comboTone(r.ci);
-    const tier=r.ci<=1?' big':r.ci<=5?' hit':'';
-    const cards=r.hand.map((c,j)=>`<span class="mc${isRed(c.suit)?' red':''}${state.held[j]?' held':''}"><b>${c.rank}</b>${c.suit}</span>`).join('');
-    return [`<div class="mh${tier?` ${tier}`:''}${tone!=='none'?` tone-${tone}`:''}"><div class="mcs">${cards}</div><div class="lab"><em>#${i+1}</em><span>${COMBOS[r.ci].name}</span></div></div>`];
-  }).join('');
+  gridEl.innerHTML='';
+  let index=0;
+  const renderBatch=()=>{
+    if(renderId!==gridRenderId)return;
+    let rendered=0;
+    let markup='';
+    while(index<state.results.length&&rendered<100){
+      const i=index++;
+      const r=state.results[i];
+      if(Number.isInteger(state.filter)&&r.ci!==state.filter)continue;
+      const tone=comboTone(r.ci);
+      const tier=r.ci<=1?' big':r.ci<=5?' hit':'';
+      const cards=r.hand.map((c,j)=>`<span class="mc${isRed(c.suit)?' red':''}${state.held[j]?' held':''}">${c.rank}${c.suit}</span>`).join('');
+      markup+=`<div class="mh${tier?` ${tier}`:''}${tone!=='none'?` tone-${tone}`:''}"><div class="mcs">${cards}</div><div class="lab"><em>#${i+1}</em><span>${COMBOS[r.ci].name}</span></div></div>`;
+      rendered++;
+    }
+    if(markup)gridEl.insertAdjacentHTML('beforeend',markup);
+    if(index<state.results.length)setTimeout(renderBatch,0);
+  };
+  renderBatch();
 }
 
 function handleDeal(){
